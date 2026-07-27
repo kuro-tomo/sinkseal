@@ -54,7 +54,7 @@ jobs:
       - name: Configure git identity for the throwaway test repos
         run: |
           git config --global user.email ci@example.com
-          git config --global user.name "AgentGuard CI"
+          git config --global user.name "SinkSeal CI"
           git config --global init.defaultBranch main
       - name: Run smoke test suite
         run: bash tests/smoke_test.sh

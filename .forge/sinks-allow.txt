@@ -1,4 +1,4 @@
-# Legitimate sink holders for AgentGuard's own repo, read by
+# Legitimate sink holders for SinkSeal's own repo, read by
 # hooks/no-live-fire-check.sh (the CI "stock" sweep).
 #
 # tests/smoke_test.sh deliberately contains sink-pattern-matching literal

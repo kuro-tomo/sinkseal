@@ -1,4 +1,4 @@
-# AgentGuard live-fire vendor table (read by sink-inventory-drift.sh)
+# SinkSeal live-fire vendor table (read by sink-inventory-drift.sh)
 #
 # [Why this table exists]
 # no-live-fire-check.sh only asks "does an un-allowlisted file touch a *known* sink

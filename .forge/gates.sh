@@ -1,6 +1,6 @@
 #!/bin/bash
-# AgentGuard's own pre-push test command (this repo's .forge/gates.sh).
-# AgentGuard is a pure bash/text project (no package.json/requirements.txt),
+# SinkSeal's own pre-push test command (this repo's .forge/gates.sh).
+# SinkSeal is a pure bash/text project (no package.json/requirements.txt),
 # so pre-push's generic auto-detection finds nothing to run. This is the
 # project-specific override it looks for instead.
 set -uo pipefail

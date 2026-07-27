@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard: live-fire ledger coverage check (sink-inventory-drift)
+# SinkSeal: live-fire ledger coverage check (sink-inventory-drift)
 #
 # Division of labor with no-live-fire-check.sh:
 #   no-live-fire-check.sh ... "does a file outside the allowlist touch a *known*
@@ -21,7 +21,7 @@ repo_root=$(git rev-parse --show-toplevel)
 hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Installed repos keep these directly under .githooks/; running from the
-# AgentGuard checkout itself keeps them under ../lib/ — check both.
+# SinkSeal checkout itself keeps them under ../lib/ — check both.
 find_lib() {
   if [ -f "$hook_dir/$1" ]; then echo "$hook_dir/$1"
   elif [ -f "$hook_dir/../lib/$1" ]; then echo "$hook_dir/../lib/$1"
@@ -40,12 +40,12 @@ vendors_allow="$repo_root/.forge/vendors-allow.txt"
 # over-detection but can silently pass on a repo with an empty inventory.
 if [ -z "$vendors_file" ]; then
   echo "Live-fire ledger coverage: **cannot run** — vendor table not found (live-fire-vendors.txt missing)." >&2
-  echo "  Re-run install.sh to redistribute the AgentGuard hooks." >&2
+  echo "  Re-run install.sh to redistribute the SinkSeal hooks." >&2
   exit 1
 fi
 if [ -z "$sinks_default" ]; then
   echo "Live-fire ledger coverage: **cannot run** — sink pattern table not found (sinks-default.txt missing)." >&2
-  echo "  Re-run install.sh to redistribute the AgentGuard hooks." >&2
+  echo "  Re-run install.sh to redistribute the SinkSeal hooks." >&2
   exit 1
 fi
 

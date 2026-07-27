@@ -1,4 +1,4 @@
-# AgentGuard default R-flag (risk-flag) detection rules
+# SinkSeal default R-flag (risk-flag) detection rules
 #
 # PATH:<regex>    fires if a staged file path matches
 # CONTENT:<regex> fires if an added line (a diff `+` line) matches
