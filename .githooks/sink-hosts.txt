@@ -1,0 +1,33 @@
+# AgentGuard vendor API host table (catches SDK bypass via raw HTTP)
+#
+# A table that only matches on SDK names lets `requests.post("https://api.twilio.com/...")`
+# sail through untouched. The sink is not the SDK — it's "the destination of an
+# irreversible external action" — so the destination itself needs to be a scan target.
+# If a host name appears in code that can execute, it needs an entry in the allowlist.
+#
+# [Why this is a separate file from sinks-default.txt]
+# This file IS included in no-live-fire-check.sh's scan, but it is NOT used by
+# sink-inventory-drift.sh's "ledger coverage" check. If the two were merged, adding a
+# single host-name line for a vendor would make that vendor's SDK-call coverage look
+# "complete" even if no SDK-call pattern for it exists at all. Host coverage and
+# SDK-call coverage are not the same thing — keep them separate.
+
+api\.twilio\.com
+api\.sendgrid\.com
+api\.resend\.com
+api\.stripe\.com
+api\.mailgun\.(net|org)
+api\.postmarkapp\.com
+api\.vonage\.com|rest\.nexmo\.com
+api\.plivo\.com
+api\.telnyx\.com
+api\.onesignal\.com
+api\.paypal\.com|api-m\.paypal\.com
+(sns|email|connect)\.[a-z0-9-]+\.amazonaws\.com
+
+# --- Public posting (irreversible: deleting a post does not un-publish it) ---
+api\.twitter\.com|api\.x\.com|upload\.twitter\.com
+api\.linkedin\.com
+graph\.facebook\.com|graph\.instagram\.com
+buffer\.com/api|api\.bufferapp\.com
+discord\.com/api/webhooks

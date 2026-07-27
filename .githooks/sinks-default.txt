@@ -1,0 +1,76 @@
+# AgentGuard default sink patterns ("live-fire" outbound call sites)
+# "Live fire" = an irreversible external action (SMS, voice call, email, payment, order,
+# physical control). A "sink" is the final call site that fires it.
+#
+# Each line is a grep -E regex, matched case-sensitively against real call sites.
+# Lines starting with # and blank lines are ignored. Add project-specific sinks in
+# .forge/sinks.txt using the same format.
+#
+# Design intent: callers multiply, sinks stay few. So the guard belongs on the sink
+# itself (sink sealing), and this file is the machine-checkable ledger of "where the
+# raw sinks are." Comment lines are excluded by the scanner, so leaving a note about a
+# fix here never produces a false positive.
+
+# --- SMS / voice (Twilio, AWS SNS, in-house wrappers) ---
+# Note: deliberately NOT matching bare `.messages.create` / `.calls.create` — that
+# collides syntactically with LLM SDK calls (e.g. `client.messages.create`), which
+# consume tokens but are not an irreversible external action. Twilio detection goes
+# through package references instead.
+sns_service\.send_notification
+connect_service\.make_call
+twilio_service\.(send|call|notify)
+twilio\.rest
+from twilio
+import twilio
+Twilio(Rest)?Client
+
+# AWS SNS/SES: catch the client constructor itself, not just wrapper names
+# (a wrapper-name-only pattern misses code that calls boto3 directly).
+boto3\.client\(\s*['"](sns|ses|sesv2|connect)['"]
+
+# Other SMS/voice vendors listed in live-fire-vendors.txt as live-fire. Without
+# an entry here, sink-inventory-drift.sh's ledger-coverage check would flag
+# every one of these as "present but uncovered" the moment a project depends on
+# them — not because the scanner is broken, but because no SDK-call pattern
+# existed to catch them (a host-only entry in sink-hosts.txt deliberately
+# doesn't count as coverage; see that file's header for why).
+new Vonage\(|import vonage|vonage\.Client\(
+import nexmo|new Nexmo\(
+import plivo|plivo\.RestClient\(
+import telnyx|telnyx\.Message\.create
+messagebird\.initClient\(|import messagebird
+new SinchClient\(|import sinch
+bandwidth\.Client\(|import bandwidth
+
+# --- Email ---
+smtplib\.SMTP
+sendgrid.*Client|SendGridAPIClient
+\.(send_email|send_raw_email)\(
+email_service\.send
+new Resend\(|\.emails\.send\(
+\.sendMail\(
+createTransport\(
+
+# --- Payments (Stripe) ---
+# Covers both the Python SDK (PascalCase singular) and the Node SDK (camelCase plural).
+stripe\.(Charge|PaymentIntent|Refund|Payout|Transfer|Subscription)\.(create|cancel|capture|modify)
+stripe\.checkout\.[Ss]essions?\.create
+stripe\.(customers|charges|paymentIntents|refunds|payouts|transfers|subscriptions|invoices)\.(create|cancel|capture|update|del|modify)\(
+
+# --- Chat / external webhook notifications ---
+hooks\.slack\.com
+api\.line\.me
+notify-api\.line\.me
+
+# --- Public-posting SDKs ---
+# Host names live in sink-hosts.txt (catches raw-HTTP bypass of the SDK).
+# This section catches the SDK client construction itself.
+new TwitterApi\(|twitter-api-v2
+require\(['"]twit['"]\)|from ['"]twit['"]
+LinkedInApi\(|linkedin-api-client
+new Discord(WebhookClient|\.Client)\(
+
+# --- Vendor API hosts (direct HTTP) ---
+# Split out into sink-hosts.txt. no-live-fire-check.sh reads both files together, but
+# sink-inventory-drift.sh's coverage check does NOT use sink-hosts.txt — see the header
+# comment in that file for why.

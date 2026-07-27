@@ -1,0 +1,40 @@
+# AgentGuard default R-flag (risk-flag) detection rules
+#
+# PATH:<regex>    fires if a staged file path matches
+# CONTENT:<regex> fires if an added line (a diff `+` line) matches
+#
+# Matching is case-insensitive (grep -iE). Lines starting with # and blank lines
+# are ignored. Add project-specific rules in .forge/rflag-rules.txt using the
+# same format — they are unioned with this file, not a replacement for it.
+#
+# An R-flag does not block the commit. It requires the commit message to carry
+# an explicit `R-Flag: yes` or `R-Flag: no (reason)` trailer (enforced by
+# commit-msg), so a human has to consciously acknowledge the risk category
+# instead of it passing by unnoticed in a larger diff.
+
+PATH:stripe
+PATH:billing
+PATH:payment
+PATH:webhook
+PATH:(^|/)auth(/|\.|$)
+PATH:cookie
+PATH:session
+PATH:crypto
+PATH:migrations?/
+PATH:(^|/)\.env
+
+# Regulated / externally-filed documents. These patterns are deliberately generic
+# (not tied to any one jurisdiction's filing system) — adjust or extend in
+# .forge/rflag-rules.txt to match the specific regulator(s) your project answers to
+# (e.g. SEC filings, prospectuses, audited financial statements, safety certifications).
+PATH:(^|/)(prospectus|disclosures?|regulatory[_-]?filings?)(/|\.|$)
+PATH:(^|/)compliance(/|\.|$)
+
+CONTENT:set-cookie
+CONTENT:ALTER TABLE
+CONTENT:DROP TABLE
+CONTENT:jwt\.(sign|verify)
+CONTENT:bcrypt
+CONTENT:STRIPE_SECRET
+CONTENT:api[_-]?key\s*=
+CONTENT:process\.env\.[A-Z_]*SECRET

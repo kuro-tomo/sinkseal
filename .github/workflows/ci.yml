@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax-check every shell script
+        run: |
+          set -e
+          for f in hooks/*.sh hooks/pre-commit hooks/commit-msg hooks/pre-push install.sh tests/*.sh; do
+            bash -n "$f"
+          done
+      - name: shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          ignore_paths: '.git'
+
+  no-live-fire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Live-fire CI sweep (stock)
+        run: bash hooks/no-live-fire-check.sh
+
+  sink-inventory-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Live-fire ledger coverage check
+        run: bash hooks/sink-inventory-drift.sh
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure git identity for the throwaway test repos
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name "AgentGuard CI"
+          git config --global init.defaultBranch main
+      - name: Run smoke test suite
+        run: bash tests/smoke_test.sh
+      - name: Run pattern-complexity guard
+        run: bash tests/pattern_complexity_test.sh

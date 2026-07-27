@@ -1,0 +1,12 @@
+# Legitimate sink holders for AgentGuard's own repo, read by
+# hooks/no-live-fire-check.sh (the CI "stock" sweep).
+#
+# tests/smoke_test.sh deliberately contains sink-pattern-matching literal
+# strings (twilio.rest, twilio_service.send, etc.) as fixture content inside
+# heredocs, so it can exercise sink-scan.sh's own detection logic. The CI
+# stock sweep has no test-path exemption by design (unlike sink-scan.sh's
+# flow-stage test_re exemption) -- it exists precisely to catch sinks that
+# predate the tool, and exempting test/ paths there would blind it to a real
+# category of stock. This is the one legitimate exception: a test file whose
+# job is to contain sink-pattern strings on purpose, not a real call site.
+tests/smoke_test\.sh$
