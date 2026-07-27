@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal: live-fire sink scan (pre-commit stage)
 # Pattern-matches the "added" lines of the staged diff against the sink table.
 # Comment-only lines are excluded so that leaving a note about a prior fix never

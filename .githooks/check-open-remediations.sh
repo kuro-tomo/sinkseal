@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal: open-remediation cross-check (Claude Code memory integration)
 # Invocation: check-open-remediations.sh
 # Output: if a staged change's keywords overlap with an open item ("- [ ] ") in

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal install.sh — install the git hooks into a target repo, self-contained.
 # Usage: ./install.sh /path/to/repo
 
@@ -55,18 +56,36 @@ echo "  Intentional live-fire demo ledger: $target/LIVE_FIRE.md (template: sinks
 # actually wired into CI on a small minority of repos it was "installed" on,
 # and nobody noticed for a long time because the install script itself reported
 # success either way. Replace the instruction with a check.
+#
+# Checked across whatever CI system the repo actually uses — GitHub Actions,
+# GitLab CI, Bitbucket Pipelines, or CircleCI — rather than assuming GitHub
+# Actions specifically. A repo with none of these present is treated the same
+# as one where the wiring is simply missing.
+ci_locations=(
+  "$target/.github/workflows"
+  "$target/.gitlab-ci.yml"
+  "$target/bitbucket-pipelines.yml"
+  "$target/.circleci/config.yml"
+)
 missing=()
 for chk in no-live-fire-check.sh sink-inventory-drift.sh; do
-  if ! grep -rqs "$chk" "$target/.github/workflows/" 2>/dev/null; then
-    missing+=("$chk")
-  fi
+  found=0
+  for loc in "${ci_locations[@]}"; do
+    [ -e "$loc" ] || continue
+    if grep -rqs "$chk" "$loc" 2>/dev/null; then
+      found=1
+      break
+    fi
+  done
+  [ "$found" -eq 0 ] && missing+=("$chk")
 done
 if [ "${#missing[@]}" -gt 0 ]; then
   echo ""
-  echo "WARNING: CI not wired up. The following are never invoked from any workflow:"
+  echo "WARNING: CI not wired up. The following are never invoked from any CI config:"
   printf '    - %s\n' "${missing[@]}"
-  echo "    Add a job to .github/workflows/ci.yml that runs them, and register that job as a"
-  echo "    required status check under branch protection."
+  echo "    Add a job that runs them (GitHub Actions: .github/workflows/, GitLab CI:"
+  echo "    .gitlab-ci.yml, Bitbucket: bitbucket-pipelines.yml, CircleCI: .circleci/config.yml)"
+  echo "    and register that job as a required status check."
   echo "    (Green CI without this wiring does not mean the install is complete.)"
   exit 2
 fi

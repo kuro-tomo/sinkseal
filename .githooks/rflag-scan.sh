@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal: R-flag (risk-flag) scan — pattern-matches the staged diff.
 # Invocation: rflag-scan.sh
 # Output: on a match, lists the reasons to stdout and exits 1. No match -> exit 0.
@@ -18,10 +19,18 @@ rule_files=()
 [ -f "$default_rules" ] && rule_files+=("$default_rules")
 [ -f "$custom_rules" ] && rule_files+=("$custom_rules")
 
-staged_files=$(git diff --cached --name-only || true)
+# .githooks/ is where install.sh copies this very toolkit's own hooks and
+# pattern tables into the adopting repo. Without excluding it, a rule like
+# "CONTENT:set-cookie" matches its own definition line the moment .githooks/
+# is first committed -- every single adopter hits an R-flag on their very
+# first commit, on pattern-table text that isn't actually risky code.
+# .forge/ (the adopter's own rule/sink additions) is deliberately NOT
+# excluded here -- a change there is exactly the kind of thing worth
+# flagging for acknowledgment.
+staged_files=$(git diff --cached --name-only -- . ':(exclude).githooks/**' || true)
 [ -z "$staged_files" ] && exit 0
 
-staged_added_lines=$(git diff --cached -- . 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+staged_added_lines=$(git diff --cached -- . ':(exclude).githooks/**' 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' || true)
 
 matched=()
 

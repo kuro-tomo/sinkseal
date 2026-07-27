@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal: live-fire ledger coverage check (sink-inventory-drift)
 #
 # Division of labor with no-live-fire-check.sh:
