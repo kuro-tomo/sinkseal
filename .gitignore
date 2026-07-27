@@ -1,0 +1,20 @@
+# Claude Code session-local files — not part of AgentGuard itself
+.claude/
+error.log
+
+# Internal handover/working notes (case names, internal decision history) —
+# never meant for public distribution
+CLAUDE.md
+
+# Editor / OS noise
+.DS_Store
+
+# dcr-scan (threat-model / vuln-scan / triage) working state and outputs —
+# may contain security-sensitive detail not meant for public distribution
+.threat-model-state/
+.triage-state/
+THREAT_MODEL.md
+VULN-FINDINGS.json
+VULN-FINDINGS.md
+TRIAGE.json
+TRIAGE.md

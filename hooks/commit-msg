@@ -1,0 +1,56 @@
+#!/bin/bash
+# AgentGuard commit-msg: if an R-flag marker was left by pre-commit, require a trailer.
+
+# Inside a worktree .git is a file, not a directory, so resolve the worktree's
+# own real git directory the same way pre-commit does.
+git_dir=$(git rev-parse --absolute-git-dir)
+marker="$git_dir/FORGE_RFLAG_DETECTED"
+remediation_marker="$git_dir/FORGE_OPEN_REMEDIATION_DETECTED"
+msg_file="$1"
+
+status=0
+
+if [ -f "$marker" ]; then
+  if grep -qE '^R-Flag:[[:space:]]*(yes|no)([[:space:]]|$)' "$msg_file"; then
+    rm -f "$marker"
+  else
+    cat >&2 <<'EOF'
+
+Blocked: this change was flagged R-flag, but the commit message has no
+"R-Flag: yes" or "R-Flag: no (reason)" trailer.
+
+Example:
+  git commit -m "$(cat <<'MSG'
+  Summary of the change
+
+  R-Flag: yes
+  MSG
+  )"
+EOF
+    status=1
+  fi
+fi
+
+if [ -f "$remediation_marker" ]; then
+  if grep -qE '^Remediation-Check:[[:space:]]*(covered|unrelated)([[:space:]]|$)' "$msg_file"; then
+    rm -f "$remediation_marker"
+  else
+    cat >&2 <<'EOF'
+
+Blocked: this change overlaps with an open item in memory, but the commit
+message has no "Remediation-Check: covered" or "Remediation-Check: unrelated
+(reason)" trailer.
+
+Example:
+  git commit -m "$(cat <<'MSG'
+  Summary of the change
+
+  Remediation-Check: covered
+  MSG
+  )"
+EOF
+    status=1
+  fi
+fi
+
+exit $status

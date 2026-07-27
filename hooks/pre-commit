@@ -1,0 +1,63 @@
+#!/bin/bash
+# AgentGuard pre-commit: gitleaks (lightweight, staged diff only) + R-flag scan
+# Heavy checks (typecheck, tests) are deferred to pre-push so commits stay fast.
+
+hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Inside a worktree, .git is a file (a pointer to the real repo), not a
+# directory, so a plain "$repo_root/.git/xxx" path silently fails (touch/rm just
+# error out, so the marker never actually gets created and commit-msg's check
+# quietly no-ops). --absolute-git-dir resolves the worktree's own real git
+# directory (.git/worktrees/<name>), which works from both the main checkout and
+# any worktree.
+git_dir=$(git rev-parse --absolute-git-dir)
+marker="$git_dir/FORGE_RFLAG_DETECTED"
+remediation_marker="$git_dir/FORGE_OPEN_REMEDIATION_DETECTED"
+rm -f "$marker" "$remediation_marker"
+
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --no-banner -v 2>&1; then
+    echo ""
+    echo "Blocked: gitleaks detected a probable secret."
+    exit 1
+  fi
+else
+  echo "Warning: gitleaks not found on PATH — secret scanning was skipped for this commit."
+  echo "  Install it (https://github.com/gitleaks/gitleaks) so this check actually runs."
+fi
+
+if ! "$hook_dir/rflag-scan.sh"; then
+  touch "$marker"
+  echo ""
+  echo "This change was flagged as R-flag (risk-flag)."
+  echo "Include one of these trailers at the end of your commit message:"
+  echo "  R-Flag: yes"
+  echo "  R-Flag: no (reason it doesn't apply)"
+fi
+
+# Live-fire sink scan: exit 2 = hard block (refuse the commit), exit 1 = soft R-flag.
+sink_rc=0
+"$hook_dir/sink-scan.sh" || sink_rc=$?
+if [ "$sink_rc" -eq 2 ]; then
+  echo ""
+  echo "Blocked: demo/mock code is calling a raw live-fire sink directly. Commit refused."
+  echo "(If this is a genuinely intentional live-fire demo, register it in LIVE_FIRE.md first —"
+  echo " see that file's template. Don't just bypass this check.)"
+  exit 1
+elif [ "$sink_rc" -eq 1 ]; then
+  touch "$marker"
+  echo ""
+  echo "This change touches a live-fire sink (a raw outbound call site). R-flag trailer required."
+  echo "Include one of these trailers at the end of your commit message:"
+  echo "  R-Flag: yes"
+  echo "  R-Flag: no (reason it doesn't apply)"
+fi
+
+if ! "$hook_dir/check-open-remediations.sh"; then
+  touch "$remediation_marker"
+  echo ""
+  echo "Include one of these trailers at the end of your commit message:"
+  echo "  Remediation-Check: covered (this change addresses the open item)"
+  echo "  Remediation-Check: unrelated (reason it doesn't apply)"
+fi
+
+exit 0

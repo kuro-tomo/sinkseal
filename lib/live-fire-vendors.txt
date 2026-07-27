@@ -1,0 +1,71 @@
+# AgentGuard live-fire vendor table (read by sink-inventory-drift.sh)
+#
+# [Why this table exists]
+# no-live-fire-check.sh only asks "does an un-allowlisted file touch a *known* sink
+# pattern?" So if a project adds a new live-fire vendor and forgets to add a matching
+# pattern to sinks-default.txt / .forge/sinks.txt, that sink stays invisible to the
+# scan and silently shows "pass." The ledger rots quietly. This table exists to let a
+# machine notice that rot.
+#
+# [Verdict]
+#   presence (vendor appears in a dependency manifest)  AND
+#   no coverage (no line in the sink pattern tables matches the coverage regex)
+#   -> violation: "a live-fire vendor is present but no sink pattern catches it."
+#
+# [Format]  vendor;;presence;;coverage;;category
+#   presence : regex matched case-insensitively against dependency manifests
+#              (package.json, requirements.txt, etc.)
+#   coverage : regex matched case-insensitively against each line of the sink pattern
+#              tables. Any single match counts as covered.
+#
+# Add project-specific vendors in .forge/vendors.txt using the same format.
+# Vendors judged not to be live-fire in a given project go in .forge/vendors-allow.txt
+# (with a reason comment — these are audited periodically).
+
+# --- SMS / voice ---
+twilio;;twilio;;twilio;;SMS/voice
+vonage;;vonage;;vonage;;SMS/voice
+nexmo;;nexmo;;nexmo;;SMS/voice
+plivo;;plivo;;plivo;;SMS/voice
+messagebird;;messagebird;;messagebird;;SMS/voice
+telnyx;;telnyx;;telnyx;;SMS/voice
+sinch;;sinch;;sinch;;SMS/voice
+bandwidth;;bandwidth;;bandwidth;;SMS/voice
+
+# --- Email ---
+sendgrid;;sendgrid;;sendgrid;;email
+resend;;resend;;resend;;email
+mailgun;;mailgun;;mailgun;;email
+postmark;;postmark;;postmark;;email
+nodemailer;;nodemailer;;sendMail|createTransport;;email
+mailjet;;mailjet;;mailjet;;email
+brevo;;sendinblue|@getbrevo;;sendinblue|brevo;;email
+sparkpost;;sparkpost;;sparkpost;;email
+
+# --- Payments ---
+stripe;;stripe;;stripe;;payments
+paypal;;paypal;;paypal;;payments
+braintree;;braintree;;braintree;;payments
+square;;squareup;;squareup|square;;payments
+adyen;;adyen;;adyen;;payments
+razorpay;;razorpay;;razorpay;;payments
+paddle;;paddle;;paddle;;payments
+lemonsqueezy;;lemonsqueezy;;lemonsqueezy;;payments
+
+# --- Push notifications (irreversible delivery to a device) ---
+onesignal;;onesignal;;onesignal;;push
+expo-push;;expo-server-sdk;;expo-server-sdk;;push
+fcm;;firebase-admin;;firebase-admin|fcm|messaging\(\);;push
+
+# --- Shipping / orders ---
+shippo;;shippo;;shippo;;shipping
+easypost;;easypost;;easypost;;shipping
+
+# --- AWS (generic SDK that can carry SNS/SES/Connect — presence alone must trigger a check) ---
+aws;;boto3|@aws-sdk|aws-sdk;;boto3\\.client|amazonaws|sns_service|connect_service;;notifications/email (AWS)
+
+# --- Public posting ---
+twitter-sdk;;twitter-api-v2|^twit$;;twitter-api-v2|TwitterApi|api\\.twitter\\.com|api\\.x\\.com;;public posting
+linkedin-sdk;;linkedin-api;;linkedin-api|api\\.linkedin\\.com;;public posting
+buffer;;bufferapp;;bufferapp|buffer\\.com/api;;public posting
+discord-webhook;;discord\\.js;;discord\\.com/api/webhooks|DiscordWebhookClient;;public posting

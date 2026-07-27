@@ -1,0 +1,91 @@
+#!/bin/bash
+# AgentGuard pre-push: on a push to main (or master), run typecheck + tests.
+# Project-specific test commands go in .forge/gates.sh, which takes priority
+# over the generic auto-detection below.
+# Missing changelog entries are a warning only (non-blocking) — a hard block on
+# a documentation habit just teaches people to reach for --no-verify by default.
+
+repo_root=$(git rev-parse --show-toplevel)
+
+pushing_main=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/heads/master) pushing_main=1 ;;
+  esac
+done
+
+if [ "$pushing_main" -eq 0 ]; then
+  exit 0
+fi
+
+echo "AgentGuard pre-push: push to the default branch detected. Running checks..."
+fail=0
+
+custom_gate="$repo_root/.forge/gates.sh"
+if [ -x "$custom_gate" ]; then
+  echo "-> Running project-specific gate (.forge/gates.sh)..."
+  "$custom_gate" || fail=1
+else
+  # Generic auto-detection: check root, frontend/, website/ in turn. This only
+  # recognizes a fixed set of conventional layouts — a project laid out
+  # differently (Python config in pyproject.toml/setup.cfg rather than
+  # requirements.txt+tests/, or a JS root that isn't repo_root/frontend/website)
+  # will match nothing here and silently run zero checks. Track and report
+  # that explicitly so "nothing to check" is never indistinguishable from
+  # "checks passed" — if that's your layout, add .forge/gates.sh instead of
+  # relying on this fallback.
+  ran_any=0
+  for dir in "$repo_root" "$repo_root/frontend" "$repo_root/website"; do
+    if [ -f "$dir/package.json" ]; then
+      echo "-> [$(basename "$dir")] typecheck..."
+      (cd "$dir" && npx tsc --noEmit) || fail=1
+      ran_any=1
+    fi
+  done
+
+  for dir in "$repo_root" "$repo_root/backend"; do
+    if [ -f "$dir/requirements.txt" ] && [ -d "$dir/tests" ] || [ -f "$dir/pytest.ini" ]; then
+      echo "-> [$(basename "$dir")] pytest..."
+      (cd "$dir" && python3 -m pytest -q) || fail=1
+      ran_any=1
+    fi
+  done
+
+  if [ "$ran_any" -eq 0 ]; then
+    echo "-> No recognized project layout found (no package.json / requirements.txt+tests"
+    echo "   / pytest.ini in the usual locations). Nothing was actually checked."
+    echo "   Add .forge/gates.sh to run your project's real test command here."
+  fi
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "Blocked: checks failed. Push to the default branch refused."
+  echo "(In a genuine emergency, that's a deliberate, conscious override at your own"
+  echo " discretion outside this hook — not something to reach for by default.)"
+  exit 1
+fi
+
+# Optional same-day changelog check. This is opt-in via a repo-relative path
+# declared in .forge/changelog-path.txt, precisely because there's no
+# universal answer to "where does this project keep its changelog" — an
+# earlier internal version of this hook hardcoded one specific tool's
+# personal home-directory memory file, which doesn't generalize to other
+# environments or other people's machines.
+changelog_config="$repo_root/.forge/changelog-path.txt"
+if [ -f "$changelog_config" ]; then
+  # Trim only leading/trailing whitespace (and a trailing CR) — stripping all
+  # whitespace with `tr -d '[:space:]'` would also corrupt a path that
+  # legitimately contains an embedded space.
+  changelog_rel=$(head -1 "$changelog_config" | sed -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  if [ -n "$changelog_rel" ]; then
+    changelog_path="$repo_root/$changelog_rel"
+    today=$(date +%Y-%m-%d)
+    if [ -f "$changelog_path" ] && ! grep -q "$today" "$changelog_path" 2>/dev/null; then
+      echo ""
+      echo "Warning: $changelog_rel has no entry dated $today. Check whether you forgot to log this change (warning only — push continues)."
+    fi
+  fi
+fi
+
+exit 0
