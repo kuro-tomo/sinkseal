@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard: live-fire CI sweep (no-live-fire-check)
+# SinkSeal: live-fire CI sweep (no-live-fire-check)
 # Scans every tracked file in the repo against the sink patterns and fails if any
 # file not listed in the allowlist (.forge/sinks-allow.txt) contains a raw sink.
 # This exists because a diff review (flow) can never catch a live-fire call site
@@ -16,7 +16,7 @@ set -uo pipefail
 repo_root=$(git rev-parse --show-toplevel)
 hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Installed repos keep these directly under .githooks/; running from the AgentGuard
+# Installed repos keep these directly under .githooks/; running from the SinkSeal
 # checkout itself keeps them under ../lib/ — check both so this never silently
 # fails open just because it's being run from the wrong location.
 default_sinks="$hook_dir/sinks-default.txt"
@@ -49,7 +49,7 @@ if [ "${#patterns[@]}" -eq 0 ]; then
   # misplaced pattern table look identical to "everything passed."
   echo "Live-fire CI sweep: **cannot run** — sink pattern table not found (sinks-default.txt missing)." >&2
   echo "  Looked in: $hook_dir/sinks-default.txt and $hook_dir/../lib/sinks-default.txt" >&2
-  echo "  Re-run install.sh to redistribute the AgentGuard hooks." >&2
+  echo "  Re-run install.sh to redistribute the SinkSeal hooks." >&2
   exit 1
 fi
 combined=$(IFS='|'; echo "${patterns[*]}")

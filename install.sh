@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard install.sh — install the git hooks into a target repo, self-contained.
+# SinkSeal install.sh — install the git hooks into a target repo, self-contained.
 # Usage: ./install.sh /path/to/repo
 
 set -euo pipefail
@@ -46,7 +46,7 @@ echo "  Add project-specific R-flag rules in: $target/.forge/rflag-rules.txt"
 echo "  Add project-specific sink patterns in: $target/.forge/sinks.txt"
 echo "  Allowlist for legitimate sink holders: $target/.forge/sinks-allow.txt (read by the CI sweep)"
 echo "  Custom test command: $target/.forge/gates.sh (make it executable)"
-echo "  Intentional live-fire demo ledger: $target/LIVE_FIRE.md (template: agentguard/templates/LIVE_FIRE.md)"
+echo "  Intentional live-fire demo ledger: $target/LIVE_FIRE.md (template: sinkseal/templates/LIVE_FIRE.md)"
 
 # --- Machine-verify the CI wiring --------------------------------------------
 # An earlier version stopped at printing "add this to your CI workflow." That

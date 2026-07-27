@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard: live-fire sink scan (pre-commit stage)
+# SinkSeal: live-fire sink scan (pre-commit stage)
 # Pattern-matches the "added" lines of the staged diff against the sink table.
 # Comment-only lines are excluded so that leaving a note about a prior fix never
 # produces a false positive.
@@ -24,7 +24,7 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Installed repos keep these directly under .githooks/ (install.sh copies both
-# files there); running from the AgentGuard checkout itself keeps them under
+# files there); running from the SinkSeal checkout itself keeps them under
 # ../lib/ instead — check both, matching no-live-fire-check.sh and
 # sink-inventory-drift.sh, so this doesn't silently fail open just because it's
 # being run from the source layout rather than an installed one.
@@ -53,7 +53,7 @@ if [ "${#patterns[@]}" -eq 0 ]; then
   # "nothing to flag" (Codex verification, 2026-07-27, flagged this exact gap).
   echo "Live-fire sink scan: **cannot run** — no sink pattern table found (sinks-default.txt missing)." >&2
   echo "  Looked in: $hook_dir/ and $hook_dir/../lib/" >&2
-  echo "  Re-run install.sh to redistribute the AgentGuard hooks." >&2
+  echo "  Re-run install.sh to redistribute the SinkSeal hooks." >&2
   exit 1
 fi
 combined=$(IFS='|'; echo "${patterns[*]}")

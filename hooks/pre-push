@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard pre-push: on a push to main (or master), run typecheck + tests.
+# SinkSeal pre-push: on a push to main (or master), run typecheck + tests.
 # Project-specific test commands go in .forge/gates.sh, which takes priority
 # over the generic auto-detection below.
 # Missing changelog entries are a warning only (non-blocking) — a hard block on
@@ -19,7 +19,7 @@ if [ "$pushing_main" -eq 0 ]; then
   exit 0
 fi
 
-echo "AgentGuard pre-push: push to the default branch detected. Running checks..."
+echo "SinkSeal pre-push: push to the default branch detected. Running checks..."
 fail=0
 
 custom_gate="$repo_root/.forge/gates.sh"

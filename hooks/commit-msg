@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard commit-msg: if an R-flag marker was left by pre-commit, require a trailer.
+# SinkSeal commit-msg: if an R-flag marker was left by pre-commit, require a trailer.
 
 # Inside a worktree .git is a file, not a directory, so resolve the worktree's
 # own real git directory the same way pre-commit does.

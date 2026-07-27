@@ -1,4 +1,4 @@
-# AgentGuard default sink patterns ("live-fire" outbound call sites)
+# SinkSeal default sink patterns ("live-fire" outbound call sites)
 # "Live fire" = an irreversible external action (SMS, voice call, email, payment, order,
 # physical control). A "sink" is the final call site that fires it.
 #

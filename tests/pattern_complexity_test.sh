@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard: pattern-complexity guard for lib/*.txt
+# SinkSeal: pattern-complexity guard for lib/*.txt
 #
 # rflag-scan.sh, sink-scan.sh, and no-live-fire-check.sh all feed pattern-table
 # lines straight into grep -E with no size cap and no validation beyond regex

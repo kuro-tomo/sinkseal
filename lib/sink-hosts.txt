@@ -1,4 +1,4 @@
-# AgentGuard vendor API host table (catches SDK bypass via raw HTTP)
+# SinkSeal vendor API host table (catches SDK bypass via raw HTTP)
 #
 # A table that only matches on SDK names lets `requests.post("https://api.twilio.com/...")`
 # sail through untouched. The sink is not the SDK — it's "the destination of an

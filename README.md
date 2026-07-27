@@ -1,4 +1,4 @@
-# AgentGuard
+# SinkSeal
 
 Git-hook guardrails for AI coding agents. Works regardless of which agent
 writes the code — Claude Code, Cursor, Codex, or a human — because the
@@ -37,7 +37,7 @@ volume — it depends on a human remembering to do it every time, and that's
 exactly the kind of dependency a checklist should replace with something a
 machine checks instead.
 
-AgentGuard is a set of git hooks that encode both checks mechanically, so
+SinkSeal is a set of git hooks that encode both checks mechanically, so
 they run on every commit and every push regardless of which agent (or human)
 authored the change, and regardless of whether anyone remembered to ask for a
 review.
@@ -87,7 +87,7 @@ not on every caller: a guarded relay (e.g. `notifier.notify()`) that
 unconditionally no-ops for a synthetic/test/demo identifier, rather than
 trusting every call site to remember to check first.
 
-AgentGuard enforces this at two points:
+SinkSeal enforces this at two points:
 
 - **Flow** (`sink-scan.sh`, runs on every commit): a demo/mock path adding a
   *raw* sink call — bypassing the guarded relay — is a hard block. Any other
@@ -129,7 +129,7 @@ layer* is down, not just the word "disabled."
 
 This copies the hooks self-contained into `<repo>/.githooks/` and sets
 `core.hooksPath` accordingly. Because the copy is self-contained, it survives
-even if this AgentGuard checkout is later deleted, and it's inherited
+even if this SinkSeal checkout is later deleted, and it's inherited
 automatically by any git worktree of that repo (worktrees share tracked
 files).
 
@@ -155,7 +155,7 @@ Every pattern you add to `.forge/rflag-rules.txt` or `.forge/sinks.txt` is fed s
 ### On bypassing
 
 `git commit --no-verify` / `git push --no-verify` skip these hooks entirely —
-that's how git hooks work, and AgentGuard doesn't try to hide that. What it
+that's how git hooks work, and SinkSeal doesn't try to hide that. What it
 does provide is a machine-enforced default: every commit and push gets
 checked unless someone deliberately opts out, which is a very different
 posture from "checked only when someone remembers to ask." If you use Claude
@@ -195,7 +195,7 @@ AIコーディングエージェントは大量の差分を高速に生成する
 実行することに依存しており、それこそがチェックリストを機械照合へ置き換えるべき
 典型例である。
 
-AgentGuardは、この両方の検査を機械的に組み込んだGit hook一式である。どの
+SinkSealは、この両方の検査を機械的に組み込んだGit hook一式である。どの
 エージェント（あるいは人間）が変更を書いたかに関わらず、また誰かがレビューを
 思い出したか否かに関わらず、コミット・プッシュの都度作動する。
 
@@ -216,7 +216,7 @@ no-live-fire-check.sh・sink-inventory-drift.sh・check-open-remediations.sh）�
 デモ用の識別子に対して無条件でno-opするガード付き中継（例：`notifier.notify()`）
 を経由させ、各呼び出し元が確認を怠らぬことに期待しない。
 
-AgentGuardはこれを二点で強制する——**flow**（`sink-scan.sh`・毎コミット。デモ/
+SinkSealはこれを二点で強制する——**flow**（`sink-scan.sh`・毎コミット。デモ/
 モック領域からの生砲口追加はハードブロック、その他は軟R旗）と、**stock**
 （`no-live-fire-check.sh`・CI必須。統制施行前からmainに眠る経路を全木走査で
 掃討）。三つ目の`sink-inventory-drift.sh`は、新しい実弾ベンダーを導入した際に
@@ -233,7 +233,7 @@ AgentGuardはこれを二点で強制する——**flow**（`sink-scan.sh`・毎
 ```
 
 対象リポジトリの`.githooks/`へ自己完結の形で複製し、`core.hooksPath`を
-設定する。自己完結ゆえこのAgentGuard自体を後で削除しても動作し、worktreeにも
+設定する。自己完結ゆえこのSinkSeal自体を後で削除しても動作し、worktreeにも
 自動継承される。`install.sh`は`no-live-fire-check.sh`・`sink-inventory-drift.sh`
 が実際に`.github/workflows/`から呼ばれているかを機械検証し、未配線ならexit 2
 で知らせる——「導入した」と「CIで実際に動いている」は別物であるため。

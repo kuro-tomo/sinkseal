@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard: open-remediation cross-check (Claude Code memory integration)
+# SinkSeal: open-remediation cross-check (Claude Code memory integration)
 # Invocation: check-open-remediations.sh
 # Output: if a staged change's keywords overlap with an open item ("- [ ] ") in
 #         Claude Code's per-project memory notes, lists the hits to stdout and

@@ -1,10 +1,10 @@
 #!/bin/bash
-# AgentGuard: R-flag (risk-flag) scan — pattern-matches the staged diff.
+# SinkSeal: R-flag (risk-flag) scan — pattern-matches the staged diff.
 # Invocation: rflag-scan.sh
 # Output: on a match, lists the reasons to stdout and exits 1. No match -> exit 0.
 # This file is copied self-contained into each repo's .githooks/ by install.sh
 # (not a reference back to a central kit — it still works if the repo is cloned
-# somewhere the original AgentGuard checkout no longer exists).
+# somewhere the original SinkSeal checkout no longer exists).
 
 set -euo pipefail
 

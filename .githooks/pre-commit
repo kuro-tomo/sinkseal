@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard pre-commit: gitleaks (lightweight, staged diff only) + R-flag scan
+# SinkSeal pre-commit: gitleaks (lightweight, staged diff only) + R-flag scan
 # Heavy checks (typecheck, tests) are deferred to pre-push so commits stay fast.
 
 hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

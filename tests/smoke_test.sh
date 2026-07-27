@@ -1,5 +1,5 @@
 #!/bin/bash
-# AgentGuard smoke test — codifies the scenarios manually verified during the
+# SinkSeal smoke test — codifies the scenarios manually verified during the
 # ultracode review and Codex verification passes (2026-07-27) into a single
 # repeatable script, so "it worked when I tried it by hand" becomes an actual
 # regression test instead of a claim.
@@ -46,7 +46,7 @@ git add .github/workflows/ci.yml
 git commit -q -m ci
 
 install_rc=0
-"$KIT_DIR/install.sh" "$REPO" >/tmp/agentguard_install.log 2>&1 || install_rc=$?
+"$KIT_DIR/install.sh" "$REPO" >/tmp/sinkseal_install.log 2>&1 || install_rc=$?
 check "install.sh succeeds and verifies CI wiring" 0 "$install_rc"
 
 # --- Case 1: raw-HTTP bypass of an SDK (sink-hosts.txt) is caught -----------
@@ -104,16 +104,16 @@ git reset -q weird.js; rm -f weird.js
 
 # --- Case 6/7: commit-msg trailer anchoring ----------------------------------
 git_dir=$(git rev-parse --absolute-git-dir)
-printf 'Summary\n\nR-Flag: yesfurthermore\n' > /tmp/agentguard_msg1.txt
+printf 'Summary\n\nR-Flag: yesfurthermore\n' > /tmp/sinkseal_msg1.txt
 touch "$git_dir/FORGE_RFLAG_DETECTED"
-rc=0; .githooks/commit-msg /tmp/agentguard_msg1.txt >/dev/null 2>&1 || rc=$?
+rc=0; .githooks/commit-msg /tmp/sinkseal_msg1.txt >/dev/null 2>&1 || rc=$?
 check "commit-msg rejects 'R-Flag: yesfurthermore'" 1 "$rc"
 
-printf 'Summary\n\nR-Flag: yes\n' > /tmp/agentguard_msg2.txt
+printf 'Summary\n\nR-Flag: yes\n' > /tmp/sinkseal_msg2.txt
 touch "$git_dir/FORGE_RFLAG_DETECTED"
-rc=0; .githooks/commit-msg /tmp/agentguard_msg2.txt >/dev/null 2>&1 || rc=$?
+rc=0; .githooks/commit-msg /tmp/sinkseal_msg2.txt >/dev/null 2>&1 || rc=$?
 check "commit-msg accepts 'R-Flag: yes'" 0 "$rc"
-rm -f /tmp/agentguard_msg1.txt /tmp/agentguard_msg2.txt
+rm -f /tmp/sinkseal_msg1.txt /tmp/sinkseal_msg2.txt
 
 # --- Case 8: no-live-fire-check.sh stock sweep + allowlist ------------------
 mkdir -p demo
