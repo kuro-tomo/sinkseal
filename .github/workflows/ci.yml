@@ -10,7 +10,7 @@ jobs:
   gitleaks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
@@ -20,7 +20,7 @@ jobs:
   shellcheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Syntax-check every shell script
         run: |
           set -e
@@ -36,21 +36,21 @@ jobs:
   no-live-fire:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Live-fire CI sweep (stock)
         run: bash hooks/no-live-fire-check.sh
 
   sink-inventory-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Live-fire ledger coverage check
         run: bash hooks/sink-inventory-drift.sh
 
   smoke-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Configure git identity for the throwaway test repos
         run: |
           git config --global user.email ci@example.com
