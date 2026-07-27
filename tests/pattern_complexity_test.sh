@@ -31,10 +31,12 @@ nested_quantifier_re='\([^()]*[+*][^()]*\)[+*]'
 violations=0
 for f in "$KIT_DIR"/lib/*.txt; do
   [ -f "$f" ] || continue
+  fname=$(basename "$f")
+  # shellcheck disable=SC2094 # basename only reads $f's path string, no write conflict with the `< "$f"` read below
   while IFS= read -r line; do
     case "$line" in ''|\#*) continue ;; esac
     if echo "$line" | grep -qE "$nested_quantifier_re"; then
-      echo "SUSPECT (nested quantifier -- possible ReDoS): $(basename "$f"): $line"
+      echo "SUSPECT (nested quantifier -- possible ReDoS): $fname: $line"
       violations=$((violations + 1))
     fi
   done < "$f"

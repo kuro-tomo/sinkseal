@@ -8,6 +8,7 @@
 repo_root=$(git rev-parse --show-toplevel)
 
 pushing_main=0
+# shellcheck disable=SC2034 # git feeds all four fields on stdin; only remote_ref is used
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$remote_ref" in
     refs/heads/main|refs/heads/master) pushing_main=1 ;;

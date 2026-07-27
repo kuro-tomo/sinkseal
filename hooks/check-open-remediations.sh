@@ -41,6 +41,7 @@ main_repo_root=$(cd "$(dirname "$common_dir")" && pwd)
 # "/" would compute a directory name Claude Code never actually creates for any
 # repo path containing a dot, underscore, or space, and this check would then
 # silently no-op for that entire project.
+# shellcheck disable=SC2001 # ${var//pattern/repl} doesn't support this POSIX class portably across bash versions
 sanitized=$(echo "$main_repo_root" | sed 's/[^A-Za-z0-9]/-/g')
 memory_dir="$HOME/.claude/projects/${sanitized}/memory"
 

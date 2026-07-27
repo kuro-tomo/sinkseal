@@ -33,7 +33,7 @@ check() {
 # --- set up a throwaway repo, installed the normal way -----------------------
 REPO="$SCRATCH/repo"
 mkdir -p "$REPO"
-cd "$REPO"
+cd "$REPO" || exit 1
 git init -q
 git config user.email test@example.com
 git config user.name test
