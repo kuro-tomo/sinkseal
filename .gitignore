@@ -10,11 +10,13 @@ ANNOUNCEMENTS.md
 # Editor / OS noise
 .DS_Store
 
-# dcr-scan (threat-model / vuln-scan / triage) working state and outputs —
-# may contain security-sensitive detail not meant for public distribution
+# dcr-scan (threat-model / vuln-scan / triage) working state and outputs.
+# THREAT_MODEL.md is deliberately published (high-level threat classes and
+# mitigation status only, no exploit recipes) — see the repo root. The raw
+# scan/triage detail below is more actionable for an attacker (specific
+# findings, not just threat classes) and stays unpublished.
 .threat-model-state/
 .triage-state/
-THREAT_MODEL.md
 VULN-FINDINGS.json
 VULN-FINDINGS.md
 TRIAGE.json
