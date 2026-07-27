@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal: live-fire CI sweep (no-live-fire-check)
 # Scans every tracked file in the repo against the sink patterns and fails if any
 # file not listed in the allowlist (.forge/sinks-allow.txt) contains a raw sink.

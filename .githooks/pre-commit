@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal pre-commit: gitleaks (lightweight, staged diff only) + R-flag scan
 # Heavy checks (typecheck, tests) are deferred to pre-push so commits stay fast.
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# SinkSeal version: 0.1.0
 # SinkSeal pre-push: on a push to main (or master), run typecheck + tests.
 # Project-specific test commands go in .forge/gates.sh, which takes priority
 # over the generic auto-detection below.

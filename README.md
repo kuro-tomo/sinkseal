@@ -1,5 +1,8 @@
 # SinkSeal
 
+[![CI](https://github.com/kuro-tomo/sinkseal/actions/workflows/ci.yml/badge.svg)](https://github.com/kuro-tomo/sinkseal/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Git-hook guardrails for AI coding agents. Works regardless of which agent
 writes the code — Claude Code, Cursor, Codex, or a human — because the
 control lives in the git hook, not in any one tool's configuration.
@@ -72,6 +75,16 @@ lib/
 templates/
   LIVE_FIRE.md                  registration template for an intentional
                                live-fire demo path
+skills/
+  setup.md                      a Claude Code skill that installs SinkSeal end
+                               to end (run install.sh, wire CI, walk through
+                               the first commit) — drop into ~/.claude/skills/
+                               or the Anthropic Skills directory
+tests/
+  smoke_test.sh                 end-to-end regression suite (throwaway repo,
+                               installs the kit, asserts exit codes)
+  pattern_complexity_test.sh    static ReDoS guard for lib/*.txt (flags a
+                               nested-quantifier shape before it ships)
 install.sh                     installs everything into a target repo,
                                self-contained (no dependency on this checkout
                                continuing to exist)
@@ -134,11 +147,17 @@ automatically by any git worktree of that repo (worktrees share tracked
 files).
 
 `install.sh` also verifies that `no-live-fire-check.sh` and
-`sink-inventory-drift.sh` are actually referenced somewhere under
-`.github/workflows/` — not just installed, but wired into CI — and exits
-non-zero if not. A hook nobody's CI ever runs provides no protection, and an
-install script that reports success either way just teaches everyone to trust
-a install that in practice inconsistently ran.
+`sink-inventory-drift.sh` are actually referenced somewhere in your CI config
+(GitHub Actions, GitLab CI, Bitbucket Pipelines, or CircleCI) — not just
+installed, but wired into CI — and exits non-zero if not. A hook nobody's CI
+ever runs provides no protection, and an install script that reports success
+either way just teaches everyone to trust an install that, in practice, was
+never actually wired up.
+
+**Updating the kit.** `install.sh` copies files; it doesn't leave a link back
+to this checkout. If you pull a newer SinkSeal and want the changes, re-run
+`install.sh` against each repo you installed it into — there's no automatic
+propagation.
 
 ### Per-project tuning
 
@@ -163,6 +182,16 @@ Code specifically, you can additionally configure a `PreToolUse` hook in your
 own environment to block `--no-verify` invocations at the tool layer — that's
 a personal/organizational policy choice outside the scope of what this repo
 ships, since it depends on your own agent tooling.
+
+### SinkSeal Pro Kit
+
+Need risk-flag rules for a regulated industry (finance/PCI, healthcare/HIPAA,
+EU GDPR) beyond the generic defaults here, or the `/done` and `/ship` Claude
+Code skills that pair with this kit's branch-protection model? Those ship
+separately as the paid **SinkSeal Pro Kit** on Gumroad — everything on this
+page stays free either way.
+
+<!-- TODO(sinkseal): fill in the Gumroad product URL once the listing is live -->
 
 ### License
 
@@ -235,8 +264,13 @@ SinkSealはこれを二点で強制する——**flow**（`sink-scan.sh`・毎�
 対象リポジトリの`.githooks/`へ自己完結の形で複製し、`core.hooksPath`を
 設定する。自己完結ゆえこのSinkSeal自体を後で削除しても動作し、worktreeにも
 自動継承される。`install.sh`は`no-live-fire-check.sh`・`sink-inventory-drift.sh`
-が実際に`.github/workflows/`から呼ばれているかを機械検証し、未配線ならexit 2
-で知らせる——「導入した」と「CIで実際に動いている」は別物であるため。
+が実際にCI設定（GitHub Actions・GitLab CI・Bitbucket Pipelines・CircleCIのいずれか）
+から呼ばれているかを機械検証し、未配線ならexit 2で知らせる——「導入した」と
+「CIで実際に動いている」は別物であるため。
+
+**キット更新時：** `install.sh`はファイルを複製するのみで、この配布元への
+参照を残さぬ。新しいSinkSealを取得した際に反映させるには、導入済みの各
+リポジトリへ`install.sh`を再実行する要あり——自動的な伝播はせぬ。
 
 ### 案件固有の調律
 
@@ -253,6 +287,15 @@ SinkSealはこれを二点で強制する——**flow**（`sink-scan.sh`・毎�
 `PreToolUse` hookを設け`--no-verify`自体をツール層で拒否することも可能だが、
 それは各自のエージェント運用に依存する個人/組織側の方針であり、本リポジトリ
 が同梱する範囲を超える。
+
+### SinkSeal Pro Kit
+
+金融（PCI関連）・医療（HIPAA関連）・EU GDPR等、規制産業向けの拡張R旗パターン、
+及びこのキットのbranch protection運用と対になる`/done`・`/ship`のClaude Code
+スキルは、有料の**SinkSeal Pro Kit**として別途Gumroadにて提供予定にて候
+（本ページの内容はいずれも無料のまま）。
+
+<!-- TODO(sinkseal): Gumroad商品ページ確定後にURLを追記 -->
 
 ### ライセンス
 

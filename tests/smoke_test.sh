@@ -49,6 +49,15 @@ install_rc=0
 "$KIT_DIR/install.sh" "$REPO" >/tmp/sinkseal_install.log 2>&1 || install_rc=$?
 check "install.sh succeeds and verifies CI wiring" 0 "$install_rc"
 
+# --- Case: committing the freshly-installed .githooks/ must not self-trigger
+# an R-flag (the pattern tables' own "CONTENT:set-cookie" etc. lines would
+# otherwise match themselves the moment they're first added to the repo --
+# every single adopter would hit this on their very first commit) ----------
+git add .githooks >/dev/null 2>&1
+rc=0; .githooks/rflag-scan.sh >/dev/null 2>&1 || rc=$?
+check "committing the installed .githooks/ does not self-trigger an R-flag" 0 "$rc"
+git reset -q .githooks >/dev/null 2>&1
+
 # --- Case 1: raw-HTTP bypass of an SDK (sink-hosts.txt) is caught -----------
 mkdir -p demo
 cat > demo/raw_http.py <<'EOF'
