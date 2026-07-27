@@ -292,10 +292,16 @@ SinkSealはこれを二点で強制する——**flow**（`sink-scan.sh`・毎�
 
 金融（PCI関連）・医療（HIPAA関連）・EU GDPR等、規制産業向けの拡張R旗パターン、
 及びこのキットのbranch protection運用と対になる`/done`・`/ship`のClaude Code
-スキルは、有料の**SinkSeal Pro Kit**として別途Gumroadにて提供予定にて候
+スキルは、有料の**SinkSeal Pro Kit**として別途Gumroadにて提供予定
 （本ページの内容はいずれも無料のまま）。
 
 <!-- TODO(sinkseal): Gumroad商品ページ確定後にURLを追記 -->
+
+### セキュリティ
+
+脆弱性の報告は`SECURITY.md`を参照。本ツール自身の脅威モデル（想定する脅威・
+対策状況の一覧）は`THREAT_MODEL.md`にて公開している——弱点を隠さず示す
+ことが、セキュリティ関連ツールへの信頼の土台になると考えるため。
 
 ### ライセンス
 
