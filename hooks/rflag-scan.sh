@@ -27,7 +27,20 @@ rule_files=()
 # .forge/ (the adopter's own rule/sink additions) is deliberately NOT
 # excluded here -- a change there is exactly the kind of thing worth
 # flagging for acknowledgment.
-staged_files=$(git diff --cached --name-only -- . ':(exclude).githooks/**' || true)
+#
+# The file list is read with -z (NUL-delimited) so names arrive raw. Without -z,
+# git C-quotes any non-ASCII name into octal escapes ("auth/\346\227..." -- a
+# leading double quote plus backslash-digits), so an anchored path rule such as
+# (^|/)auth never matches and the file silently slips through with no flag.
+# If git itself fails, stop with exit 2 ("could not inspect") rather than
+# treating the empty list as "nothing flagged" -- being unable to inspect is not
+# a pass.
+gr=0
+staged_files=$(git diff --cached --name-only -z -- . ':(exclude).githooks/**' | tr '\0' '\n'; exit "${PIPESTATUS[0]}") || gr=$?
+if [ "$gr" -ne 0 ]; then
+  echo "R-flag scan: could not read the staged file list from git (exit=${gr}). Unable to inspect is not a pass." >&2
+  exit 2
+fi
 [ -z "$staged_files" ] && exit 0
 
 staged_added_lines=$(git diff --cached -- . ':(exclude).githooks/**' 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' || true)

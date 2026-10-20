@@ -26,13 +26,21 @@ else
   echo "  Install it (https://github.com/gitleaks/gitleaks) so this check actually runs."
 fi
 
-if ! "$hook_dir/rflag-scan.sh"; then
+rflag_rc=0
+"$hook_dir/rflag-scan.sh" || rflag_rc=$?
+if [ "$rflag_rc" -eq 1 ]; then
   touch "$marker"
   echo ""
   echo "This change was flagged as R-flag (risk-flag)."
   echo "Include one of these trailers at the end of your commit message:"
   echo "  R-Flag: yes"
   echo "  R-Flag: no (reason it doesn't apply)"
+elif [ "$rflag_rc" -ne 0 ]; then
+  # 0 = no flag, 1 = flagged; anything else means the scan could not run.
+  # Unable to inspect is not a pass, and a trailer must not be able to wave it through.
+  echo ""
+  echo "Blocked: the R-flag scan failed to run (exit=${rflag_rc}). Unable to inspect is not a pass. See the output above."
+  exit 1
 fi
 
 # Live-fire sink scan: exit 2 = hard block (refuse the commit), exit 1 = soft R-flag.
@@ -51,14 +59,28 @@ elif [ "$sink_rc" -eq 1 ]; then
   echo "Include one of these trailers at the end of your commit message:"
   echo "  R-Flag: yes"
   echo "  R-Flag: no (reason it doesn't apply)"
+elif [ "$sink_rc" -ne 0 ]; then
+  # 0 = no sink, 1 = soft R-flag, 2 = hard block; anything else (3 = could not
+  # inspect, 127 = script missing, ...) means the scan could not run.
+  echo ""
+  echo "Blocked: the live-fire sink scan failed to run (exit=${sink_rc}). Unable to inspect is not a pass. See the output above."
+  exit 1
 fi
 
-if ! "$hook_dir/check-open-remediations.sh"; then
+rem_rc=0
+"$hook_dir/check-open-remediations.sh" || rem_rc=$?
+if [ "$rem_rc" -eq 1 ]; then
   touch "$remediation_marker"
   echo ""
   echo "Include one of these trailers at the end of your commit message:"
   echo "  Remediation-Check: covered (this change addresses the open item)"
   echo "  Remediation-Check: unrelated (reason it doesn't apply)"
+elif [ "$rem_rc" -ne 0 ]; then
+  # 0 = no related item, 1 = possibly related; anything else means the check
+  # could not run, which a trailer must not be able to wave through.
+  echo ""
+  echo "Blocked: the open-remediation check failed to run (exit=${rem_rc}). Unable to inspect is not a pass. See the output above."
+  exit 1
 fi
 
 exit 0

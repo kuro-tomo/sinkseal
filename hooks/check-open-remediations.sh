@@ -48,24 +48,44 @@ memory_dir="$HOME/.claude/projects/${sanitized}/memory"
 
 [ -d "$memory_dir" ] || exit 0
 
-staged_files=$(git diff --cached --name-only || true)
+# The file list is read with -z (NUL-delimited) so names arrive raw. Without -z,
+# git C-quotes non-ASCII names into octal escapes ("docs/manual_\346\223..."),
+# and the grep below then read those "\346" as a back-reference, exited with
+# "invalid backreference number", and the `|| true` swallowed it -- the whole
+# check silently did nothing for any file with a non-ASCII name.
+gr=0
+staged_files=$(git diff --cached --name-only -z | tr '\0' '\n'; exit "${PIPESTATUS[0]}") || gr=$?
+if [ "$gr" -ne 0 ]; then
+  echo "Open-remediation check: could not read the staged file list from git (exit=${gr}). Unable to inspect is not a pass." >&2
+  exit 2
+fi
 [ -z "$staged_files" ] && exit 0
 
 # Basenames of staged files (extension stripped, lowercased, deduped, entries
-# under 4 chars dropped to cut down on noise).
-keywords=$(echo "$staged_files" \
-  | xargs -I{} basename {} \
-  | sed -E 's/\.[^.]+$//' \
+# under 4 chars dropped to cut down on noise). Plain shell string operations
+# are used instead of xargs/basename, which mangle names that start with "-"
+# or contain quote characters.
+keywords=$(printf '%s\n' "$staged_files" \
+  | while IFS= read -r p; do b="${p##*/}"; printf '%s\n' "${b%.*}"; done \
   | tr '[:upper:]' '[:lower:]' \
   | awk 'length($0) >= 4' \
   | sort -u)
 
 [ -z "$keywords" ] && exit 0
 
+open_items=$(grep -inE "^- \[ \]" "$memory_dir"/*.md 2>/dev/null || true)
+
 matched=()
 while IFS= read -r kw; do
   [ -z "$kw" ] && continue
-  hits=$(grep -inE "^- \[ \]" "$memory_dir"/*.md 2>/dev/null | grep -i -- "$kw" || true)
+  # The name is matched as a fixed string (-F): read as a regex, a "\1" or "[" in
+  # a file name would be misparsed. grep exits 0 = match, 1 = no match, 2+ = error;
+  # an error must not be swallowed as "no related item".
+  gr=0; hits=$(printf '%s\n' "$open_items" | grep -iF -- "$kw") || gr=$?
+  if [ "$gr" -ge 2 ]; then
+    echo "Open-remediation check: matching failed (keyword='${kw}', grep exit=${gr}). Unable to inspect is not a pass." >&2
+    exit 2
+  fi
   [ -n "$hits" ] && matched+=("$hits")
 done <<< "$keywords"
 

@@ -2,6 +2,33 @@
 
 All notable changes to SinkSeal are recorded here.
 
+## [Unreleased]
+
+### Fixed
+
+- **Non-ASCII file names silently escaped every hook.** By default git C-quotes a
+  non-ASCII file name into octal escapes (`"auth/\346\227\245..."`). The hooks used
+  `git diff --cached --name-only` / `git ls-files` output as if it were the raw name, so
+  for a file with a non-ASCII name: `rflag-scan.sh` never matched anchored path rules
+  (e.g. `auth/`), `sink-scan.sh` skipped the file's sink (including the demo/mock
+  **hard block**), `no-live-fire-check.sh` swept a path that does not exist,
+  `sink-inventory-drift.sh` dropped manifests under non-ASCII directories from the
+  inventory, and `check-open-remediations.sh` died with `grep: invalid backreference
+  number` (swallowed by `|| true`), skipping the whole check. File lists are now read
+  NUL-delimited (`-z`), names are matched as fixed strings (`grep -F`), and the per-file
+  diff uses a `:(literal)` pathspec.
+- **"Could not inspect" is no longer a pass.** If git or grep fails while listing or
+  matching, the hooks now stop (`rflag-scan.sh` / `check-open-remediations.sh` exit 2,
+  `sink-scan.sh` exit 3, `no-live-fire-check.sh` exit 2, `sink-inventory-drift.sh` exit 1)
+  instead of reading an empty result as "nothing found". `pre-commit` refuses the commit
+  for any exit code other than the documented ones, so an R-Flag / Remediation-Check
+  trailer can no longer wave through a scan that never ran.
+
+### Added
+
+- `tests/test_nonascii_filenames.sh` (36 cases, run under the C locale and a UTF-8
+  locale) and `tests/mutate_nonascii_filenames.py` (35 generated mutants, all killed).
+
 ## [0.1.0] — 2026-07-27
 
 Initial public release.

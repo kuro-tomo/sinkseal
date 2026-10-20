@@ -76,15 +76,32 @@ skip_re='(^|/)(\.githooks|\.forge|node_modules|dist|build|coverage)/|\.(md|rst|t
 
 # --diff-filter=ACMR: include renames (R) too, not just added/copied/modified —
 # a rename that also edits in a raw sink call must not be invisible to this scan.
-staged=$(git diff --cached --name-only --diff-filter=ACMR || true)
-[ -z "$staged" ] && exit 0
+#
+# The file list is read with -z (NUL-delimited) so names arrive raw. Without -z,
+# git C-quotes any non-ASCII name into octal escapes ("svc_\346\227..."), and the
+# per-file `git diff -- "$f"` below then matches nothing and silently skips that
+# file's sink. The per-file diff uses a :(literal) pathspec so a name containing
+# glob characters or a leading ":" is not reinterpreted. If git fails to produce
+# the list or a diff, stop with exit 3 ("could not inspect") instead of reporting
+# "no sink". (pre-commit refuses any exit code other than 0/1/2.)
+staged_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-sink-scan.XXXXXX")" || exit 3
+trap 'rm -f "$staged_list"' EXIT
+if ! git diff --cached --name-only -z --diff-filter=ACMR > "$staged_list"; then
+  echo "Live-fire sink scan: could not read the staged file list from git. Unable to inspect is not a pass." >&2
+  exit 3
+fi
+[ -s "$staged_list" ] || exit 0
 
 hard=()
 soft=()
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   [ -z "$f" ] && continue
-  echo "$f" | grep -qE "$skip_re" && continue
-  added=$(git diff --cached -- "$f" 2>/dev/null \
+  printf '%s\n' "$f" | grep -qE "$skip_re" && continue
+  if ! diff_out=$(git diff --cached -- ":(literal)$f"); then
+    echo "Live-fire sink scan: could not read the staged diff of ${f} from git. Unable to inspect is not a pass." >&2
+    exit 3
+  fi
+  added=$(printf '%s\n' "$diff_out" \
     | grep -E '^\+' | grep -vE '^\+\+\+' | sed 's/^+//' \
     | sed -E "$strip_leading_close_comment_re" \
     | grep -vE "$comment_re" || true)
@@ -99,7 +116,7 @@ while IFS= read -r f; do
   else
     soft+=("$f")
   fi
-done <<< "$staged"
+done < "$staged_list"
 
 if [ "${#hard[@]}" -gt 0 ]; then
   echo "Live-fire hard block: demo/mock code is calling a raw external-facing sink directly."

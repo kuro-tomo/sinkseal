@@ -63,12 +63,23 @@ done
 # --- Gather dependency manifests (the primary source for "what's present").
 # Lockfiles are excluded — they're noisy with transitive dependencies. ---
 manifest_re='(^|/)(package\.json|requirements[^/]*\.txt|pyproject\.toml|Pipfile|go\.mod|Gemfile)$'
+# The tracked-file list is read with -z (NUL-delimited) so names arrive raw.
+# Without -z, git C-quotes non-ASCII names into octal escapes, and a manifest
+# under a directory with a non-ASCII name was silently dropped from the
+# inventory. If git fails to list the files, stop (an empty inventory would
+# otherwise read as "nothing to cover" = pass).
+tracked_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-drift.XXXXXX")" || exit 1
+trap 'rm -f "$tracked_list"' EXIT
+if ! git ls-files -z > "$tracked_list"; then
+  echo "Live-fire ledger coverage: **cannot run** — could not list the tracked files from git." >&2
+  exit 1
+fi
 manifest_body=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   case "$f" in *node_modules/*) continue ;; esac
   manifest_body="$manifest_body$(cat "$repo_root/$f" 2>/dev/null)"$'\n'
-done < <(git ls-files | grep -E "$manifest_re" || true)
+done < <(tr '\0' '\n' < "$tracked_list" | grep -E "$manifest_re" || true)
 
 # --- Vendors this project has explicitly judged not to be live-fire ---
 allow_keys=""
