@@ -68,7 +68,10 @@ manifest_re='(^|/)(package\.json|requirements[^/]*\.txt|pyproject\.toml|Pipfile|
 # under a directory with a non-ASCII name was silently dropped from the
 # inventory. If git fails to list the files, stop (an empty inventory would
 # otherwise read as "nothing to cover" = pass).
-tracked_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-drift.XXXXXX")" || exit 1
+tracked_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-drift.XXXXXX")" || {
+  echo "Live-fire ledger coverage: **cannot run** — could not create a temporary file (is TMPDIR writable?)." >&2
+  exit 1
+}
 trap 'rm -f "$tracked_list"' EXIT
 if ! git ls-files -z > "$tracked_list"; then
   echo "Live-fire ledger coverage: **cannot run** — could not list the tracked files from git." >&2

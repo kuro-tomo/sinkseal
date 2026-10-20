@@ -260,6 +260,55 @@ Remediation-Check: unrelated (trailer must not rescue a check that could not run
 if [ "${rc}" != "0" ] && ! has_head "${d}"; then ok "pre-commit: a failed remediation check rejects the commit even with a trailer"; else ng "pre-commit let a failed remediation check through (rc=${rc}): $(show)"; fi
 if has 'open-remediation check failed to run'; then ok "  rejection reason: the open-remediation check could not run"; else ng "  rejected for some other reason: $(show)"; fi
 
+echo "== 8. Other ways a scan can be unable to run must not read as 'nothing found' (found by the Stage-0 review) =="
+# 8a. A missing sink table is exit 3 (never 1): exit 1 is a soft R-flag that an R-Flag trailer can clear.
+d=$(mkrepo); rm -f "${d}/.githooks/sinks-default.txt" "${d}/.githooks/sink-hosts.txt"
+echo 'from twilio.rest import Client' > "${d}/svc_ascii.py"; "${GIT}" -C "${d}" add svc_ascii.py
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "3" ] && has 'cannot run'; then ok "sink-scan: no pattern table is exit 3, not a trailer-clearable exit 1"; else ng "sink-scan with no pattern table (rc=${rc}): $(show)"; fi
+( cd "${d}" && LC_ALL="${HOOK_LC}" "${GIT}" commit -q -m "change
+
+R-Flag: no (trailer must not rescue a scan that could not run)" ) >"${tmp}/out" 2>&1; rc=$?
+if [ "${rc}" != "0" ] && ! has_head "${d}"; then ok "pre-commit: a damaged install is refused even with an R-Flag trailer"; else ng "a damaged install committed with a trailer (rc=${rc}): $(show)"; fi
+
+# 8b. A missing R-flag rules table must stop the scan (exit 2) instead of flagging nothing.
+d=$(mkrepo); rm -f "${d}/.githooks/rflag-rules-default.txt"
+mkdir -p "${d}/auth"; echo x > "${d}/auth/login.py"; "${GIT}" -C "${d}" add auth/login.py
+rc=$(run "${d}" rflag-scan.sh)
+if [ "${rc}" = "2" ] && has 'rules table'; then ok "rflag-scan: no rules table is exit 2 (not a silent no-flag)"; else ng "rflag-scan with no rules table (rc=${rc}): $(show)"; fi
+
+# 8c. A broken regex in an adopter's own table must stop the scan, not silently switch the rule off.
+d=$(mkrepo); mkdir -p "${d}/.forge"; echo '(unbalanced' > "${d}/.forge/sinks.txt"
+echo 'from twilio.rest import Client' > "${d}/demo_x.py"; "${GIT}" -C "${d}" add demo_x.py
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "3" ] && has 'not a valid regular expression'; then ok "sink-scan: an invalid regex in .forge/sinks.txt is exit 3 (the demo hard block is not silently lost)"; else ng "sink-scan swallowed an invalid sink pattern (rc=${rc}): $(show)"; fi
+
+d=$(mkrepo); mkdir -p "${d}/.forge" "${d}/auth"; echo 'PATH:(unbalanced' > "${d}/.forge/rflag-rules.txt"
+echo x > "${d}/auth/login.py"; "${GIT}" -C "${d}" add auth/login.py
+rc=$(run "${d}" rflag-scan.sh)
+if [ "${rc}" = "2" ] && has 'not a valid regular expression'; then ok "rflag-scan: an invalid regex in .forge/rflag-rules.txt is exit 2"; else ng "rflag-scan swallowed an invalid rule (rc=${rc}): $(show)"; fi
+
+# 8d. The staged diff body is read separately from the file list; its failure must not read as 'no added lines'.
+d=$(mkrepo); mkdir -p "${d}/auth"; echo x > "${d}/auth/login.py"; "${GIT}" -C "${d}" add auth/login.py
+rc=$(run "${d}" rflag-scan.sh "$(gwenv)" "FAIL_GIT=--cached -- .")
+if [ "${rc}" = "2" ] && has 'could not read the staged diff'; then ok "rflag-scan: a failed diff read is exit 2 (CONTENT rules cannot silently match nothing)"; else ng "rflag-scan swallowed the diff failure (rc=${rc}): $(show)"; fi
+
+# 8e. A file name containing a newline cannot be classified by line-oriented grep: refuse, do not guess.
+d=$(mkrepo); nl_name=$'demo_x\ntest_y.py'
+echo 'from twilio.rest import Client' > "${d}/${nl_name}"; "${GIT}" -C "${d}" add -- "${nl_name}"
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "3" ] && has 'newline'; then ok "sink-scan: a staged name containing a newline is exit 3 (it cannot be classified as a test file by accident)"; else ng "sink-scan classified a newline name (rc=${rc}): $(show)"; fi
+
+# 8f. An unusable temporary directory is reported as such (and still refused), not as a mystery failure.
+d=$(mkrepo); echo 'from twilio.rest import Client' > "${d}/svc_ascii.py"; "${GIT}" -C "${d}" add svc_ascii.py
+rc=$(run "${d}" sink-scan.sh "TMPDIR=${tmp}/does-not-exist")
+if [ "${rc}" = "3" ] && has 'TMPDIR'; then ok "sink-scan: an unusable TMPDIR is exit 3 and the message names TMPDIR"; else ng "sink-scan with an unusable TMPDIR (rc=${rc}): $(show)"; fi
+rc=$(run "${d}" no-live-fire-check.sh "TMPDIR=${tmp}/does-not-exist")
+if [ "${rc}" = "2" ] && has 'TMPDIR'; then ok "no-live-fire-check: an unusable TMPDIR is exit 2 and the message names TMPDIR"; else ng "no-live-fire-check with an unusable TMPDIR (rc=${rc}): $(show)"; fi
+d=$(mkdrift app)
+rc=$(run "${d}" sink-inventory-drift.sh "TMPDIR=${tmp}/does-not-exist")
+if [ "${rc}" = "1" ] && has 'TMPDIR'; then ok "sink-inventory-drift: an unusable TMPDIR is exit 1 and the message names TMPDIR"; else ng "sink-inventory-drift with an unusable TMPDIR (rc=${rc}): $(show)"; fi
+
 echo
 echo "passed ${pass} / failed ${fail}"
 [ "${fail}" -eq 0 ]

@@ -151,7 +151,7 @@ git reset -q package.json; rm -f package.json
 ISOLATED=$(mktemp -d)
 cp "$KIT_DIR/hooks/sink-scan.sh" "$ISOLATED/"
 rc=0; "$ISOLATED/sink-scan.sh" >/dev/null 2>&1 || rc=$?
-check "sink-scan.sh fails closed (exit 1) with no pattern table reachable" 1 "$rc"
+check "sink-scan.sh fails closed (exit 3: a trailer must not clear it) with no pattern table reachable" 3 "$rc"
 rm -rf "$ISOLATED"
 
 # --- Case 11: ../lib fallback works from the source checkout layout --------

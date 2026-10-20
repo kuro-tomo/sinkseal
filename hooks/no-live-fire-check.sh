@@ -95,7 +95,10 @@ fi
 # the `$repo_root/$f` below then points at a path that does not exist, and a raw
 # sink in a file with a non-ASCII name is silently waved through. If git fails to
 # list the files, fail (exit 2) rather than sweep an empty list and report a pass.
-tracked_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-no-live-fire.XXXXXX")" || exit 2
+tracked_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-no-live-fire.XXXXXX")" || {
+  echo "Live-fire CI sweep: **cannot run** -- could not create a temporary file (is TMPDIR writable?)." >&2
+  exit 2
+}
 trap 'rm -f "$tracked_list"' EXIT
 if ! git ls-files -z > "$tracked_list"; then
   echo "Live-fire CI sweep: **cannot run** -- could not list the tracked files from git." >&2
