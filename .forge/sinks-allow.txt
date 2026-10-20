@@ -9,4 +9,7 @@
 # predate the tool, and exempting test/ paths there would blind it to a real
 # category of stock. This is the one legitimate exception: a test file whose
 # job is to contain sink-pattern strings on purpose, not a real call site.
+# tests/test_nonascii_filenames.sh is the same kind of file: it writes
+# `from twilio.rest import Client` into throwaway repos to exercise the scans.
 tests/smoke_test\.sh$
+tests/test_nonascii_filenames\.sh$

@@ -55,9 +55,23 @@ if [ "${#patterns[@]}" -eq 0 ]; then
   echo "Live-fire sink scan: **cannot run** — no sink pattern table found (sinks-default.txt missing)." >&2
   echo "  Looked in: $hook_dir/ and $hook_dir/../lib/" >&2
   echo "  Re-run install.sh to redistribute the SinkSeal hooks." >&2
-  exit 1
+  # exit 3 (not 1): pre-commit reads exit 1 as a soft R-flag that an R-Flag trailer can clear,
+  # which would let a damaged install through. 3 means "could not inspect" and is always refused.
+  exit 3
 fi
 combined=$(IFS='|'; echo "${patterns[*]}")
+
+# An invalid regex in .forge/sinks.txt would make every later `grep -qE "$combined"` exit 2,
+# which the match step below reads as "no sink here" -- a typo would silently switch the guard
+# off. Validate the combined pattern once, up front (an empty input matches nothing: exit 1 is
+# fine, exit 2 means the pattern itself is broken).
+vrc=0
+printf '' | grep -qE -e "$combined" || vrc=$?
+if [ "$vrc" -ge 2 ]; then
+  echo "Live-fire sink scan: **cannot run** — a sink pattern is not a valid regular expression (grep exit=${vrc})." >&2
+  echo "  Check .forge/sinks.txt (and the pattern tables under $hook_dir/)." >&2
+  exit 3
+fi
 
 # Drop comment-only lines (line-comment markers for common languages). A leading
 # `*/` (closing a block comment) is stripped first so that real code sharing a
@@ -76,15 +90,44 @@ skip_re='(^|/)(\.githooks|\.forge|node_modules|dist|build|coverage)/|\.(md|rst|t
 
 # --diff-filter=ACMR: include renames (R) too, not just added/copied/modified —
 # a rename that also edits in a raw sink call must not be invisible to this scan.
-staged=$(git diff --cached --name-only --diff-filter=ACMR || true)
-[ -z "$staged" ] && exit 0
+#
+# The file list is read with -z (NUL-delimited) so names arrive raw. Without -z,
+# git C-quotes any non-ASCII name into octal escapes ("svc_\346\227..."), and the
+# per-file `git diff -- "$f"` below then matches nothing and silently skips that
+# file's sink. The per-file diff uses a :(literal) pathspec so a name containing
+# glob characters or a leading ":" is not reinterpreted. If git fails to produce
+# the list or a diff, stop with exit 3 ("could not inspect") instead of reporting
+# "no sink". (pre-commit refuses any exit code other than 0/1/2.)
+staged_list="$(mktemp "${TMPDIR:-/tmp}/sinkseal-sink-scan.XXXXXX")" || {
+  echo "Live-fire sink scan: could not create a temporary file (is TMPDIR writable?). Unable to inspect is not a pass." >&2
+  exit 3
+}
+trap 'rm -f "$staged_list"' EXIT
+if ! git diff --cached --name-only -z --diff-filter=ACMR > "$staged_list"; then
+  echo "Live-fire sink scan: could not read the staged file list from git. Unable to inspect is not a pass." >&2
+  exit 3
+fi
+[ -s "$staged_list" ] || exit 0
 
 hard=()
 soft=()
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   [ -z "$f" ] && continue
-  echo "$f" | grep -qE "$skip_re" && continue
-  added=$(git diff --cached -- "$f" 2>/dev/null \
+  # The skip / test / demo classification below feeds the name to line-oriented grep. A name
+  # that contains a newline would be split into several "lines", and one of them could match
+  # skip_re or test_re and wave the whole file through. Refuse instead of guessing.
+  case "$f" in
+    *$'\n'*)
+      echo "Live-fire sink scan: a staged file name contains a newline and cannot be classified safely. Unable to inspect is not a pass." >&2
+      exit 3
+      ;;
+  esac
+  printf '%s\n' "$f" | grep -qE "$skip_re" && continue
+  if ! diff_out=$(git diff --cached -- ":(literal)$f"); then
+    echo "Live-fire sink scan: could not read the staged diff of ${f} from git. Unable to inspect is not a pass." >&2
+    exit 3
+  fi
+  added=$(printf '%s\n' "$diff_out" \
     | grep -E '^\+' | grep -vE '^\+\+\+' | sed 's/^+//' \
     | sed -E "$strip_leading_close_comment_re" \
     | grep -vE "$comment_re" || true)
@@ -99,7 +142,7 @@ while IFS= read -r f; do
   else
     soft+=("$f")
   fi
-done <<< "$staged"
+done < "$staged_list"
 
 if [ "${#hard[@]}" -gt 0 ]; then
   echo "Live-fire hard block: demo/mock code is calling a raw external-facing sink directly."

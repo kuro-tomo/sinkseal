@@ -85,6 +85,10 @@ tests/
                                installs the kit, asserts exit codes)
   pattern_complexity_test.sh    static ReDoS guard for lib/*.txt (flags a
                                nested-quantifier shape before it ships)
+  test_nonascii_filenames.sh    non-ASCII file names stay in the hooks' view, and
+                               "could not inspect" never reads as a pass
+  mutate_nonascii_filenames.py  mutation check for the suite above (injects
+                               defects into the hooks; every one must be caught)
 install.sh                     installs everything into a target repo,
                                self-contained (no dependency on this checkout
                                continuing to exist)

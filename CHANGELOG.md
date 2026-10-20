@@ -2,6 +2,51 @@
 
 All notable changes to SinkSeal are recorded here.
 
+## [Unreleased]
+
+### Fixed
+
+- **Non-ASCII file names silently escaped every hook.** By default git C-quotes a
+  non-ASCII file name into octal escapes (`"auth/\346\227\245..."`). The hooks used
+  `git diff --cached --name-only` / `git ls-files` output as if it were the raw name, so
+  for a file with a non-ASCII name: `rflag-scan.sh` never matched anchored path rules
+  (e.g. `auth/`), `sink-scan.sh` skipped the file's sink (including the demo/mock
+  **hard block**), `no-live-fire-check.sh` swept a path that does not exist,
+  `sink-inventory-drift.sh` dropped manifests under non-ASCII directories from the
+  inventory, and `check-open-remediations.sh` died with `grep: invalid backreference
+  number` (swallowed by `|| true`), skipping the whole check. File lists are now read
+  NUL-delimited (`-z`), names are matched as fixed strings (`grep -F`), and the per-file
+  diff uses a `:(literal)` pathspec.
+- **"Could not inspect" is no longer a pass.** If git or grep fails while listing or
+  matching, the hooks now stop (`rflag-scan.sh` / `check-open-remediations.sh` exit 2,
+  `sink-scan.sh` exit 3, `no-live-fire-check.sh` exit 2, `sink-inventory-drift.sh` exit 1)
+  instead of reading an empty result as "nothing found". `pre-commit` refuses the commit
+  for any exit code other than the documented ones, so an R-Flag / Remediation-Check
+  trailer can no longer wave through a scan that never ran. The same rule now also covers
+  the other ways a scan can be unable to run, each with a message that names the cause:
+  a missing pattern/rules table (`sink-scan.sh`: exit 3, previously a trailer-clearable
+  exit 1; `rflag-scan.sh`: exit 2), an invalid regular expression in a pattern table or in
+  an adopter's `.forge/sinks.txt` / `.forge/rflag-rules.txt` (validated up front; a typo can
+  no longer silently switch a guard off), a failed read of the staged diff body in
+  `rflag-scan.sh`, and an unusable temporary directory (`TMPDIR`).
+- **Staged names containing a newline are refused by `sink-scan.sh`** (exit 3). Its
+  skip/test/demo classification is line-oriented, so such a name could be mistaken for a
+  test file and waved through.
+- Deliberately unchanged: if git cannot identify a repository root (`git rev-parse
+  --show-toplevel` fails, e.g. the hook is run outside a work tree), the hooks exit 0 —
+  there is nothing to scan.
+
+### Added
+
+- `tests/test_nonascii_filenames.sh` (46 cases, run under the C locale and a UTF-8
+  locale) and `tests/mutate_nonascii_filenames.py` (40 generated mutants, all killed).
+
+### Known limitation (separate work)
+
+- `grep -q` stops at the first match, so under `pipefail` a writer that is still producing
+  output can die of SIGPIPE and turn a match into a miss on very large files
+  (`sink-scan.sh`, `sink-inventory-drift.sh`).
+
 ## [0.1.0] — 2026-07-27
 
 Initial public release.
