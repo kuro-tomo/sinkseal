@@ -308,6 +308,14 @@ d=$(mkrepo); mkiso "${d}" sink-inventory-drift.sh live-fire-vendors.txt
 rc=$(run "${d}" ../iso/sink-inventory-drift.sh)
 if [ "${rc}" = "1" ] && has 'cannot run' && has 'sink pattern table not found'; then ok "sink-inventory-drift: vendor table but no sink table -> refuses (exit 1) and says why"; else ng "sink-inventory-drift: missing sink table not refused (rc=${rc}): $(show)"; fi
 
+# sink-scan with an invalid regex in the pattern table (no-live-fire-check already refused this; sink-scan silently passed).
+d=$(mkrepo); mkdir -p "${d}/.forge"; printf '(unclosed\n' > "${d}/.forge/sinks.txt"
+echo 'twilio_service.send("hi")' > "${d}/svc_ascii.py"; "${GIT}" -C "${d}" add svc_ascii.py
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "3" ] && has 'invalid regex' && has 'cannot run'; then ok "sink-scan: an invalid regex in the pattern table -> exit 3, says why (was: silent pass)"; else ng "sink-scan: invalid table regex swallowed (rc=${rc}): $(show)"; fi
+rc=$(run "${d}" pre-commit)
+if [ "${rc}" = "1" ] && has 'sink scan failed to run'; then ok "pre-commit refuses the commit in that case"; else ng "pre-commit let it through (rc=${rc}): $(show)"; fi
+
 echo "== 7. pre-commit end to end: a non-ASCII R-flag file cannot be committed without the trailer =="
 d=$(mkrepo); mkdir -p "${d}/auth"; echo x > "${d}/auth/${JP}.py"; "${GIT}" -C "${d}" add "auth/${JP}.py"
 ( cd "${d}" && LC_ALL="${HOOK_LC}" "${GIT}" commit -q -m "change" ) >"${tmp}/out" 2>&1; rc=$?

@@ -50,10 +50,14 @@ All notable changes to SinkSeal are recorded here.
     `PATH:`/`CONTENT:` rule meant the rule silently never fired, and a failed
     `git diff` read as "no added lines". Both now exit 2 with the rule (or the
     step) named.
+  - `sink-scan.sh` did not validate its pattern table: one invalid regex line
+    made every later grep exit 2, which `|| continue` read as "no match", so
+    the whole scan passed silently (`no-live-fire-check.sh` already refused this).
+    It now validates up front and exits 3 with the cause; `pre-commit` refuses.
 
 ### Added
 
-- `tests/nonascii_filenames_test.sh` — regression test for the above (54 cases,
+- `tests/nonascii_filenames_test.sh` — regression test for the above (56 cases,
   run under both the C and a UTF-8 locale; rejection cases assert the reason in
   the output, not just a non-zero exit).
 - `tests/mutate_nonascii_filenames.py` — mutation check: mechanically plants one

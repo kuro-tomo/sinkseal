@@ -59,6 +59,18 @@ if [ "${#patterns[@]}" -eq 0 ]; then
 fi
 combined=$(IFS='|'; echo "${patterns[*]}")
 
+# One invalid regex line in a pattern table makes the combined pattern invalid, and
+# every later grep then exits 2 -- which the `|| continue` below reads as "no match",
+# so the whole scan would pass silently. Validate once, up front (no-live-fire-check.sh
+# already does this). grep exit 0/1 = pattern compiled; 2 or more = it did not.
+gr=0
+printf 'x' | grep -IqE "$combined" 2>/dev/null || gr=$?
+if [ "$gr" -ge 2 ]; then
+  echo "Live-fire sink scan: the sink pattern table contains an invalid regex, so the scan cannot run (exit=${gr})." >&2
+  echo "  Check sinks-default.txt / sink-hosts.txt / .forge/sinks.txt for unbalanced parentheses or brackets." >&2
+  exit 3
+fi
+
 # Drop comment-only lines (line-comment markers for common languages). A leading
 # `*/` (closing a block comment) is stripped first so that real code sharing a
 # line with a comment terminator — e.g. `*/sns_service.send_notification(x)` —
