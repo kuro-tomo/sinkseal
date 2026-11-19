@@ -66,10 +66,25 @@ All notable changes to SinkSeal are recorded here.
     `R-Flag: no` trailer. It now exits 3 ("could not run"), which `pre-commit`
     refuses. **Behaviour change:** anything that relied on exit 1 for this case
     must expect 3 (the bundled smoke test's Case 10 is updated accordingly).
+  - `sink-scan.sh` and `no-live-fire-check.sh`: under a UTF-8 locale a file
+    holding non-UTF-8 bytes (e.g. Shift-JIS) made BSD `sed` abort with
+    `illegal byte sequence`; the swallowed failure read as "no added lines" /
+    "comment-only" and the file's sinks passed. The comment filter now runs
+    byte-wise (`LC_ALL=C`).
+  - The `grep -q` replacement was hardened: output is now captured rather than
+    sent to `/dev/null` (GNU grep treats a `/dev/null` stdout like `-q` and also
+    stops at the first match), and a grep exit of 2 or more is refused
+    (`sink-scan.sh`, exit 3) or reported as a malformed entry
+    (`sink-inventory-drift.sh`: an invalid `presence`/`coverage` regex in a
+    vendor table entry no longer reads as "not present" / "not covered").
+  - `check-open-remediations.sh` skips unusable entries in the memory directory
+    (dangling symlink, a directory named `x.md`, an unreadable note) instead of
+    letting grep's exit 2 block every commit; a genuine grep failure on a
+    readable note is still refused.
 
 ### Added
 
-- `tests/nonascii_filenames_test.sh` — regression test for the above (57 cases,
+- `tests/nonascii_filenames_test.sh` — regression test for the above (65 cases,
   run under both the C and a UTF-8 locale; rejection cases assert the reason in
   the output, not just a non-zero exit).
 - `tests/mutate_nonascii_filenames.py` — mutation check: mechanically plants one
