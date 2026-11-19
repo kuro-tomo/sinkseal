@@ -76,13 +76,20 @@ keywords=$(printf '%s\n' "$staged_files" \
 
 [ -z "$keywords" ] && exit 0
 
-# The open items, collected once. nullglob keeps an empty memory directory (no
-# *.md at all) on the "nothing to check" path instead of handing grep a literal
-# "*.md" that does not exist. grep exit 0 = matched, 1 = no match, 2 or more =
-# error (unreadable file etc.), which must not be read as "no open items".
-shopt -s nullglob
-memory_files=("$memory_dir"/*.md)
-shopt -u nullglob
+# The open items, collected once. grep exit 0 = matched, 1 = no match, 2 or more =
+# error, which must not be read as "no open items".
+memory_candidates=("$memory_dir"/*.md)
+# With no *.md at all the glob stays literal ("*.md"), which is not a regular file and is
+# dropped here, so an empty memory directory is still the quiet "nothing to check" path.
+# Only regular, readable notes are searched. A dangling symlink, a directory named x.md or a
+# note without read permission is not a note this check can use; letting grep trip on it
+# (exit 2) would block every commit until someone repaired the memory directory. This check is
+# opt-in and designed to accept a missed detection over a false block; a genuine grep failure
+# on a readable note is still refused below.
+memory_files=()
+for mf in "${memory_candidates[@]}"; do
+  [ -f "$mf" ] && [ -r "$mf" ] && memory_files+=("$mf")
+done
 [ "${#memory_files[@]}" -eq 0 ] && exit 0
 gr=0
 open_items=$(grep -inE "^- \[ \]" "${memory_files[@]}") || gr=$?

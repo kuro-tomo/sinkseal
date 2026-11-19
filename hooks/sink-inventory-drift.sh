@@ -107,14 +107,26 @@ for vf in "$vendors_file" "$custom_vendors"; do
     fi
 
     # Is it in the dependency inventory?
-    # No grep -q on these two: it exits at the first match and the writer dies of SIGPIPE,
-    # which under pipefail reads as "no match" -- a vendor on the first line of a large
-    # manifest (or a covering pattern near the top of a large table) was silently missed.
-    printf '%s' "$manifest_body" | grep -iE "$presence" >/dev/null || continue
+    # Output is captured, not discarded or -q'd: -q (and GNU grep with stdout on /dev/null) stops
+    # at the first match and the writer dies of SIGPIPE, which under pipefail reads as "no match"
+    # -- a vendor on the first line of a large manifest was silently missed. grep exit: 0 = match,
+    # 1 = no match, 2 or more = it could not run (e.g. an invalid regex in the vendor table), which
+    # is reported as a malformed entry instead of "not present".
+    gr=0; hit=$(printf '%s' "$manifest_body" | grep -iE "$presence") || gr=$?
+    if [ "$gr" -ge 2 ]; then
+      malformed+=("$vendor (malformed vendors.txt entry: invalid presence regex)")
+      continue
+    fi
+    [ -n "$hit" ] || continue
     # Has it been explicitly exempted?
     printf '%s\n' "$allow_keys" | grep -qxF "$vendor" && continue
     # Does the ledger already cover it?
-    printf '%s' "$sink_lines" | grep -iE "$coverage" >/dev/null && continue
+    gr=0; hit=$(printf '%s' "$sink_lines" | grep -iE "$coverage") || gr=$?
+    if [ "$gr" -ge 2 ]; then
+      malformed+=("$vendor (malformed vendors.txt entry: invalid coverage regex)")
+      continue
+    fi
+    [ -n "$hit" ] && continue
 
     violations+=("$vendor ($category)")
   done < "$vf"
@@ -123,7 +135,7 @@ done
 if [ "${#malformed[@]}" -gt 0 ]; then
   echo "Live-fire ledger coverage: live-fire-vendors.txt / .forge/vendors.txt has malformed entries:" >&2
   printf '%s\n' "${malformed[@]}" | sed 's/^/  - /' >&2
-  echo "  Format: vendor;;presence;;coverage;;category (the coverage field must not be empty)" >&2
+  echo "  Format: vendor;;presence;;coverage;;category (the coverage field must not be empty; presence and coverage must be valid regexes)" >&2
 fi
 
 if [ "${#violations[@]}" -gt 0 ] || [ "${#malformed[@]}" -gt 0 ]; then

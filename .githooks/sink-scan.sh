@@ -115,16 +115,25 @@ while IFS= read -r -d '' f; do
     echo "Live-fire sink scan: could not fetch the diff of ${f} from git. A scan that cannot run is not a pass." >&2
     exit 3
   fi
-  added=$(printf '%s\n' "$diff_out" \
+  # Byte-wise (LC_ALL=C): under a UTF-8 locale BSD sed/grep abort with "illegal byte sequence" on
+  # a file holding non-UTF-8 bytes (e.g. Shift-JIS), and the `|| true` turned that into "no added
+  # lines" -- the file's sinks were silently passed. The patterns are ASCII, so bytes are enough.
+  added=$(export LC_ALL=C; printf '%s\n' "$diff_out" \
     | grep -E '^\+' | grep -vE '^\+\+\+' | sed 's/^+//' \
     | sed -E "$strip_leading_close_comment_re" \
     | grep -vE "$comment_re" || true)
   [ -z "$added" ] && continue
-  # grep -q stops reading at the first match and the writer then dies of SIGPIPE; under
-  # pipefail that is indistinguishable from "no match", so a big file with a sink on its
-  # first line was silently passed (measured at ~300KB: exit 0). Read everything and
-  # discard the output instead of using -q.
-  printf '%s\n' "$added" | grep -E "$combined" >/dev/null || continue
+  # Capture grep's output rather than using `grep -q` or `>/dev/null`: -q stops reading at the
+  # first match, and GNU grep does the same when its stdout is /dev/null; the writer then dies
+  # of SIGPIPE, which under pipefail reads as "no match" (a big file with a sink on its first
+  # line was silently passed: ~300KB, exit 0). Capturing makes grep read all its input.
+  # grep exit: 0 = match, 1 = no match, 2 or more = it could not run.
+  gr=0; hit=$(printf '%s\n' "$added" | grep -E "$combined") || gr=$?
+  if [ "$gr" -ge 2 ]; then
+    echo "Live-fire sink scan: matching the sink patterns against ${f} failed (grep exit=${gr}). A scan that cannot run is not a pass." >&2
+    exit 3
+  fi
+  [ -n "$hit" ] || continue
 
   low=$(echo "$f" | tr '[:upper:]' '[:lower:]')
   if echo "$low" | grep -qE "$test_re"; then

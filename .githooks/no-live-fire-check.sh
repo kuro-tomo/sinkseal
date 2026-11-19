@@ -109,8 +109,11 @@ while IFS= read -r -d '' f; do
   printf '%s\n' "$f" | grep -qE "$skip_re" && continue
   # -I treats binaries as non-matching. Check the raw match first, then confirm a
   # real (non-comment) match.
+  # The comment filter runs byte-wise (LC_ALL=C): under a UTF-8 locale a file with non-UTF-8 bytes
+  # (e.g. Shift-JIS) made BSD sed abort ("illegal byte sequence"), and the `|| true` then read it as
+  # "comment-only". The patterns are ASCII, so bytes are enough.
   grep -IqE "$combined" -- "$repo_root/$f" 2>/dev/null || continue
-  real=$(grep -IE "$combined" -- "$repo_root/$f" 2>/dev/null \
+  real=$(export LC_ALL=C; grep -IE "$combined" -- "$repo_root/$f" 2>/dev/null \
     | sed -E "$strip_leading_close_comment_re" | grep -vE "$comment_re" || true)
   [ -z "$real" ] && continue   # only appears in a comment -> not a live sink
 

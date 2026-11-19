@@ -24,7 +24,7 @@ hook for the constructs this fix relies on (a hand-picked list would leave gaps)
   - turning a refusal's exit code into 0
   - putting grep -q back where the whole input must be read (SIGPIPE false "no match")
   - dropping R from --diff-filter=ACMR (renames fall out of the scan)
-  - dropping nullglob / the empty-memory-dir guard / the 4-character noise filter
+  - dropping the empty-memory-dir guard / the unusable-note filter / the 4-character noise filter
   - in pre-commit: removing the "could not run" refusal branches, and widening
     `-eq 1` to `-ne 0` (the old behaviour: any non-zero exit read as a flag)
 The test runs the hooks under both the C and a UTF-8 locale; on a machine without
@@ -96,9 +96,6 @@ def generate():
             if "--diff-filter=ACMR" in ln:
                 out.append(("%s drop R from --diff-filter (renames fall out)" % tag, rel, i,
                             ln.replace("ACMR", "ACM")))
-            if "shopt -s nullglob" in ln:
-                out.append(("%s drop nullglob (empty memory dir hands grep a literal glob)" % tag, rel, i,
-                            ln.replace("shopt -s nullglob", "true")))
             if '[ "${#memory_files[@]}" -eq 0 ] && exit 0' in ln:
                 out.append(("%s drop the empty-memory-dir guard" % tag, rel, i,
                             ln.replace('[ "${#memory_files[@]}" -eq 0 ] && exit 0', "true")))
@@ -116,6 +113,29 @@ def generate():
             if m:
                 out.append(("%s grep -q instead of reading all input (SIGPIPE under pipefail)" % tag, rel, i,
                             ln.replace(m.group(0), "| grep -q%s %s" % (m.group(1)[1:], m.group(2)))))
+            # The matcher captures grep's output; mutate it to `grep -q` (early exit, and an empty capture).
+            m = re.search(r'hit=\$\(printf [^|]+\| (?:LC_ALL=C )?grep (-[A-Za-z]+) ("\$\w+")\)', ln)
+            if m:
+                out.append(("%s captured grep -> grep -q (early exit / empty capture)" % tag, rel, i,
+                            ln.replace("grep " + m.group(1) + " ", "grep -q" + m.group(1)[1:] + " ", 1)))
+            if '[ -n "$hit" ] || continue' in ln:
+                out.append(("%s drop the 'no output means no match' check" % tag, rel, i,
+                            ln.replace('[ -n "$hit" ] || continue', "true")))
+            if '[ -n "$hit" ] && continue' in ln:
+                out.append(("%s drop the 'covered' check" % tag, rel, i,
+                            ln.replace('[ -n "$hit" ] && continue', "true")))
+            # Byte-wise matching: remove LC_ALL=C (non-UTF-8 input then aborts BSD sed/grep under a UTF-8 locale).
+            if "export LC_ALL=C; " in ln:
+                out.append(("%s drop LC_ALL=C from the filter pipeline" % tag, rel, i,
+                            ln.replace("export LC_ALL=C; ", "")))
+            # Memory notes: search unusable entries too.
+            if '[ -f "$mf" ] && [ -r "$mf" ] && memory_files+=("$mf")' in ln:
+                out.append(("%s search unusable memory entries too" % tag, rel, i,
+                            ln.replace('[ -f "$mf" ] && [ -r "$mf" ] && ', "")))
+            # Invalid vendor regexes: report nothing.
+            if "malformed+=(" in ln and "invalid" in ln:
+                out.append(("%s do not report an invalid vendor regex" % tag, rel, i,
+                            re.sub(r'malformed\+=\(.*\)$', "true", ln)))
             # A guard that turns a failed check into a refusal: disable it, so failure falls through as a pass.
             m = re.match(r'^(\s*)if \[ "\$gr" -(ne 0|ge 2) \]; then(.*)$', ln)
             if m:

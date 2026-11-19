@@ -367,6 +367,51 @@ rm -f "${d}/.forge/rflag-rules.txt"
 rc=$(run "${d}" rflag-scan.sh "$(gwenv)" "FAIL_GIT=cached -- .")
 if [ "${rc}" = "2" ] && has 'could not fetch the staged diff'; then ok "rflag-scan: failure to fetch the staged diff -> exit 2 (not 'no added lines')"; else ng "rflag-scan: diff failure swallowed (rc=${rc}): $(show)"; fi
 
+echo "== 9. non-UTF-8 bytes, invalid vendor regexes, unreadable memory entries, and the grep-failure guards =="
+# A file holding non-UTF-8 bytes (Shift-JIS "\x83\x65") ahead of a sink. Under a UTF-8 locale BSD sed aborts with
+# "illegal byte sequence" and the swallowed failure used to read as "no added lines" (clean).
+d=$(mkrepo); printf 'x = "\x83\x65"\ntwilio_service.send("hi")\n' > "${d}/svc_sjis.py"; "${GIT}" -C "${d}" add svc_sjis.py
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "1" ] && has 'svc_sjis.py'; then ok "sink-scan: a sink in a file with non-UTF-8 bytes is still detected"; else ng "sink-scan: non-UTF-8 file passed as clean (rc=${rc}): $(show)"; fi
+d=$(mkrepo); printf 'x = "\x83\x65"\ntwilio_service.send("\x83\x65")\n' > "${d}/svc_sjis.py"; "${GIT}" -C "${d}" add svc_sjis.py
+rc=$(run "${d}" no-live-fire-check.sh)
+if [ "${rc}" = "1" ] && has 'svc_sjis.py'; then ok "no-live-fire-check: a sink in a file with non-UTF-8 bytes is still reported"; else ng "no-live-fire-check: non-UTF-8 file passed as clean (rc=${rc}): $(show)"; fi
+
+# Negative controls (the matcher must not flag clean input).
+d=$(mkrepo); echo 'print("hello")' > "${d}/plain.py"; "${GIT}" -C "${d}" add plain.py
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "0" ]; then ok "sink-scan: a file with no sink is not flagged"; else ng "sink-scan: false positive (rc=${rc}): $(show)"; fi
+d=$(mkdrift app); echo 'acmewidget;;no-such-dependency;;zzz-never-matches-zzz;;test' > "${d}/.forge/vendors.txt"
+rc=$(run "${d}" sink-inventory-drift.sh)
+if [ "${rc}" = "0" ]; then ok "sink-inventory-drift: a vendor that is not a dependency is not reported"; else ng "sink-inventory-drift: false positive (rc=${rc}): $(show)"; fi
+
+# An invalid regex in a vendor table entry is reported, not read as "not present" / "not covered".
+d=$(mkdrift app); echo 'acmewidget;;(acme-widget;;zzz;;test' > "${d}/.forge/vendors.txt"
+rc=$(run "${d}" sink-inventory-drift.sh)
+if [ "${rc}" = "1" ] && has 'invalid presence regex' && has 'acmewidget'; then ok "sink-inventory-drift: an invalid presence regex -> exit 1, names the vendor (was: silent pass)"; else ng "sink-inventory-drift: invalid presence regex swallowed (rc=${rc}): $(show)"; fi
+d=$(mkdrift app); echo 'acmewidget;;acme-widget-sdk;;(zzz;;test' > "${d}/.forge/vendors.txt"
+rc=$(run "${d}" sink-inventory-drift.sh)
+if [ "${rc}" = "1" ] && has 'invalid coverage regex' && has 'acmewidget'; then ok "sink-inventory-drift: an invalid coverage regex -> exit 1, names the vendor"; else ng "sink-inventory-drift: invalid coverage regex swallowed (rc=${rc}): $(show)"; fi
+
+# Unusable entries in the memory directory (dangling symlink, a directory named x.md) are skipped; they must not block
+# the commit, and a real note beside them is still searched.
+d=$(mkrepo); h=$(mkmem "${d}" "- [ ] sat-guard_manual still open")
+san=$(printf '%s' "${d}" | sed 's/[^A-Za-z0-9]/-/g'); md="${h}/.claude/projects/${san}/memory"
+ln -s "${tmp}/does-not-exist" "${md}/dangling.md"; mkdir "${md}/adir.md"
+echo x > "${d}/sat-guard_manual.md"; "${GIT}" -C "${d}" add sat-guard_manual.md
+rc=$(run "${d}" check-open-remediations.sh "HOME=${h}")
+if [ "${rc}" = "1" ] && has 'sat-guard_manual' && ! has 'grep:'; then ok "memory dir with a dangling symlink and a directory named x.md: skipped, the real note still hits"; else ng "unusable memory entry blocked or hid the check (rc=${rc}): $(show)"; fi
+
+# The matching step's own failure is refused. The wrapper fails a grep only when its arguments contain ' -E ' AND the
+# marker (the validation call uses -IqE and the filter calls have no marker, so only the matcher is hit).
+mkdir -p "${tmp}/gw2"
+# shellcheck disable=SC2016 # the wrapper script body is meant to be written out unexpanded
+printf '#!/bin/bash\ncase " $* " in *" -E "*"${FAIL_MATCH:-@@none@@}"*) echo "fake grep failure" >&2; exit 2;; esac\nexec "%s" "$@"\n' "${real_grep}" > "${tmp}/gw2/grep"
+chmod +x "${tmp}/gw2/grep"
+d=$(mkrepo); mkdir -p "${d}/.forge"; echo 'zzmarkerzz' > "${d}/.forge/sinks.txt"; echo 'zzmarkerzz()' > "${d}/svc_marker.py"; "${GIT}" -C "${d}" add svc_marker.py
+rc=$(run "${d}" sink-scan.sh "PATH=${tmp}/gw2:${PATH}" "FAIL_MATCH=zzmarkerzz")
+if [ "${rc}" = "3" ] && has 'matching the sink patterns'; then ok "sink-scan: a failing matcher grep -> exit 3, says which step (not 'no match')"; else ng "sink-scan: matcher failure swallowed (rc=${rc}): $(show)"; fi
+
 echo
 echo "passed ${pass} / failed ${fail}"
 [ "${fail}" -eq 0 ]
