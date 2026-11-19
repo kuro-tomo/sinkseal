@@ -318,6 +318,42 @@ if has 'R-Flag'; then ok "  the refusal is about the R-Flag trailer"; else ng " 
 R-Flag: yes" ) >"${tmp}/out" 2>&1; rc=$?
 if [ "${rc}" = "0" ] && has_head "${d}"; then ok "  with 'R-Flag: yes' it is accepted"; else ng "  the trailer did not unblock the commit (rc=${rc}): $(show)"; fi
 
+echo "== 8. no silent miss on large inputs (grep -q + pipefail SIGPIPE), and no silent skip of a broken rule =="
+# A sink on the first line followed by ~300KB: grep -q would stop early and the writer die of SIGPIPE, which pipefail
+# turned into "no match" (measured before the fix: exit 0).
+d=$(mkrepo)
+{ echo 'twilio_service.send("hi")'; head -c 300000 /dev/zero | tr '\0' 'x' | fold -w 80; } > "${d}/big_svc.py"
+"${GIT}" -C "${d}" add big_svc.py
+rc=$(run "${d}" sink-scan.sh)
+if [ "${rc}" = "1" ] && has 'big_svc.py'; then ok "sink-scan: a sink on line 1 of a ~300KB file is still detected"; else ng "sink-scan: large-file sink missed (rc=${rc}): $(show)"; fi
+
+d=$(mkrepo); mkdir -p "${d}/app" "${d}/.forge"
+{ echo '{"dependencies":{"acme-widget-sdk":"1.0.0"},'; head -c 300000 /dev/zero | tr '\0' 'x' | fold -w 80 | sed 's/^/"k":"/; s/$/",/'; echo '"z":"z"}'; } > "${d}/app/package.json"
+echo 'acmewidget;;acme-widget-sdk;;zzz-never-matches-zzz;;test' > "${d}/.forge/vendors.txt"
+"${GIT}" -C "${d}" add -A
+rc=$(run "${d}" sink-inventory-drift.sh)
+if [ "${rc}" = "1" ] && has 'acmewidget'; then ok "sink-inventory-drift: a vendor at the top of a ~300KB manifest is still inventoried"; else ng "sink-inventory-drift: large-manifest vendor missed (rc=${rc}): $(show)"; fi
+
+# The opposite direction: a covering pattern at the top of a large sink table must count as covered (not 'uncovered').
+d=$(mkdrift app)
+echo 'acmewidget;;acme-widget-sdk;;acmecover;;test' > "${d}/.forge/vendors.txt"
+{ echo 'acmecover'; head -c 300000 /dev/zero | tr '\0' 'x' | fold -w 100; } > "${d}/.forge/sinks.txt"
+"${GIT}" -C "${d}" add -A
+rc=$(run "${d}" sink-inventory-drift.sh)
+if [ "${rc}" = "0" ]; then ok "sink-inventory-drift: a covering pattern at the top of a large sink table counts as covered"; else ng "sink-inventory-drift: large sink table misjudged (rc=${rc}): $(show)"; fi
+
+# A rule that cannot be compiled must stop the scan, not silently never fire.
+d=$(mkrepo); mkdir -p "${d}/auth" "${d}/.forge"; echo x > "${d}/auth/login.py"; "${GIT}" -C "${d}" add auth/login.py
+printf 'PATH:(unclosed\n' > "${d}/.forge/rflag-rules.txt"
+rc=$(run "${d}" rflag-scan.sh)
+if [ "${rc}" = "2" ] && has 'PATH rule is invalid' && has 'unclosed'; then ok "rflag-scan: an invalid PATH rule -> exit 2, names the rule"; else ng "rflag-scan: invalid PATH rule swallowed (rc=${rc}): $(show)"; fi
+printf 'CONTENT:[\n' > "${d}/.forge/rflag-rules.txt"
+rc=$(run "${d}" rflag-scan.sh)
+if [ "${rc}" = "2" ] && has 'CONTENT rule is invalid'; then ok "rflag-scan: an invalid CONTENT rule -> exit 2, names the kind"; else ng "rflag-scan: invalid CONTENT rule swallowed (rc=${rc}): $(show)"; fi
+rm -f "${d}/.forge/rflag-rules.txt"
+rc=$(run "${d}" rflag-scan.sh "$(gwenv)" "FAIL_GIT=cached -- .")
+if [ "${rc}" = "2" ] && has 'could not fetch the staged diff'; then ok "rflag-scan: failure to fetch the staged diff -> exit 2 (not 'no added lines')"; else ng "rflag-scan: diff failure swallowed (rc=${rc}): $(show)"; fi
+
 echo
 echo "passed ${pass} / failed ${fail}"
 [ "${fail}" -eq 0 ]

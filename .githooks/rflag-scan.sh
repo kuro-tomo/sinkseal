@@ -41,7 +41,12 @@ if [ "$gr" -ne 0 ]; then
 fi
 [ -z "$staged_files" ] && exit 0
 
-staged_added_lines=$(git diff --cached -- . ':(exclude).githooks/**' 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' || true)
+# A failure to fetch the diff is "could not run", not "no added lines".
+if ! staged_diff=$(git diff --cached -- . ':(exclude).githooks/**'); then
+  echo "R-flag scan: could not fetch the staged diff from git. A scan that cannot run is not a pass." >&2
+  exit 2
+fi
+staged_added_lines=$(printf '%s\n' "$staged_diff" | grep -E '^\+' | grep -vE '^\+\+\+' || true)
 
 matched=()
 
@@ -52,12 +57,22 @@ for rf in "${rule_files[@]}"; do
       \#*) continue ;;
       PATH:*)
         pattern="${line#PATH:}"
-        hit=$(echo "$staged_files" | grep -iE "$pattern" || true)
+        # grep: 0 = match, 1 = no match, 2 or more = error (e.g. an invalid regex in the rule).
+        # The old `|| true` hid errors, so a broken rule never fired and the scan still passed.
+        gr=0; hit=$(echo "$staged_files" | grep -iE "$pattern") || gr=$?
+        if [ "$gr" -ge 2 ]; then
+          echo "R-flag scan: PATH rule is invalid and cannot be scanned: '${line}' in ${rf}. A scan that cannot run is not a pass." >&2
+          exit 2
+        fi
         [ -n "$hit" ] && matched+=("PATH[$pattern] -> $(echo "$hit" | tr '\n' ' ')")
         ;;
       CONTENT:*)
         pattern="${line#CONTENT:}"
-        hit=$(echo "$staged_added_lines" | grep -iE "$pattern" || true)
+        gr=0; hit=$(echo "$staged_added_lines" | grep -iE "$pattern") || gr=$?
+        if [ "$gr" -ge 2 ]; then
+          echo "R-flag scan: CONTENT rule is invalid and cannot be scanned: '${line}' in ${rf}. A scan that cannot run is not a pass." >&2
+          exit 2
+        fi
         [ -n "$hit" ] && matched+=("CONTENT[$pattern]")
         ;;
     esac

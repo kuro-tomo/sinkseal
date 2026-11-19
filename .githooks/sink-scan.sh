@@ -106,7 +106,11 @@ while IFS= read -r -d '' f; do
     | sed -E "$strip_leading_close_comment_re" \
     | grep -vE "$comment_re" || true)
   [ -z "$added" ] && continue
-  echo "$added" | grep -qE "$combined" || continue
+  # grep -q stops reading at the first match and the writer then dies of SIGPIPE; under
+  # pipefail that is indistinguishable from "no match", so a big file with a sink on its
+  # first line was silently passed (measured at ~300KB: exit 0). Read everything and
+  # discard the output instead of using -q.
+  printf '%s\n' "$added" | grep -E "$combined" >/dev/null || continue
 
   low=$(echo "$f" | tr '[:upper:]' '[:lower:]')
   if echo "$low" | grep -qE "$test_re"; then

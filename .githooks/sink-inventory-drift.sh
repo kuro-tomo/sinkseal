@@ -107,11 +107,14 @@ for vf in "$vendors_file" "$custom_vendors"; do
     fi
 
     # Is it in the dependency inventory?
-    printf '%s' "$manifest_body" | grep -qiE "$presence" || continue
+    # No grep -q on these two: it exits at the first match and the writer dies of SIGPIPE,
+    # which under pipefail reads as "no match" -- a vendor on the first line of a large
+    # manifest (or a covering pattern near the top of a large table) was silently missed.
+    printf '%s' "$manifest_body" | grep -iE "$presence" >/dev/null || continue
     # Has it been explicitly exempted?
     printf '%s\n' "$allow_keys" | grep -qxF "$vendor" && continue
     # Does the ledger already cover it?
-    printf '%s' "$sink_lines" | grep -qiE "$coverage" && continue
+    printf '%s' "$sink_lines" | grep -iE "$coverage" >/dev/null && continue
 
     violations+=("$vendor ($category)")
   done < "$vf"

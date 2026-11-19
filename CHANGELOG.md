@@ -39,10 +39,21 @@ All notable changes to SinkSeal are recorded here.
     any non-zero exit as "flagged" and letting a trailer
     (`R-Flag: no` / `Remediation-Check: unrelated`) wave through a check that
     never ran.
+- **Two more silent-miss paths in the same hooks** (found by the sweep; same
+  "a check that could not run read as a pass" shape):
+  - `sink-scan.sh` and `sink-inventory-drift.sh` used `grep -q` on a pipe under
+    `pipefail`. `-q` stops at the first match and the writer dies of SIGPIPE,
+    which reads as "no match": a sink on the first line of a ~300KB file was
+    reported clean (exit 0), and a vendor at the top of a large dependency
+    manifest was not inventoried. They now read all input.
+  - `rflag-scan.sh` swallowed errors with `|| true`: an invalid regex in a
+    `PATH:`/`CONTENT:` rule meant the rule silently never fired, and a failed
+    `git diff` read as "no added lines". Both now exit 2 with the rule (or the
+    step) named.
 
 ### Added
 
-- `tests/nonascii_filenames_test.sh` — regression test for the above (48 cases,
+- `tests/nonascii_filenames_test.sh` — regression test for the above (54 cases,
   run under both the C and a UTF-8 locale; rejection cases assert the reason in
   the output, not just a non-zero exit).
 - `tests/mutate_nonascii_filenames.py` — mutation check: mechanically plants one

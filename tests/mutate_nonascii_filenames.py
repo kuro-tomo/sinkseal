@@ -22,6 +22,7 @@ hook for the constructs this fix relies on (a hand-picked list would leave gaps)
   - disabling a guard (`if [ "$gr" -ne 0 ]` / `-ge 2` / `if ! git ...`) so a failed
     check falls through as if it had passed
   - turning a refusal's exit code into 0
+  - putting grep -q back where the whole input must be read (SIGPIPE false "no match")
   - dropping R from --diff-filter=ACMR (renames fall out of the scan)
   - dropping nullglob / the empty-memory-dir guard / the 4-character noise filter
   - in pre-commit: removing the "could not run" refusal branches, and widening
@@ -110,6 +111,11 @@ def generate():
             if "${b%.*}" in ln:
                 out.append(("%s keep the extension in the keyword" % tag, rel, i,
                             ln.replace("${b%.*}", "${b}")))
+            # Reads that must consume all their input: put grep -q (early exit -> SIGPIPE -> false "no match") back.
+            m = re.search(r'\| grep (-[A-Za-z]+) ("\$\w+") >/dev/null', ln)
+            if m:
+                out.append(("%s grep -q instead of reading all input (SIGPIPE under pipefail)" % tag, rel, i,
+                            ln.replace(m.group(0), "| grep -q%s %s" % (m.group(1)[1:], m.group(2)))))
             # A guard that turns a failed check into a refusal: disable it, so failure falls through as a pass.
             m = re.match(r'^(\s*)if \[ "\$gr" -(ne 0|ge 2) \]; then(.*)$', ln)
             if m:
