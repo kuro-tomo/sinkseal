@@ -27,7 +27,18 @@ rule_files=()
 # .forge/ (the adopter's own rule/sink additions) is deliberately NOT
 # excluded here -- a change there is exactly the kind of thing worth
 # flagging for acknowledgment.
-staged_files=$(git diff --cached --name-only -- . ':(exclude).githooks/**' || true)
+#
+# File names are read NUL-delimited (-z), as raw bytes. Without -z, git's default
+# (core.quotepath=true) wraps a non-ASCII name in double quotes with octal
+# escapes ("auth/\344\273\225.py", with a leading '"'), so an anchored PATH rule
+# such as (^|/)auth silently stopped matching it. If git itself fails, that is
+# exit 2 (the scan could not run), never "no flag".
+gr=0
+staged_files=$(git diff --cached --name-only -z -- . ':(exclude).githooks/**' | tr '\0' '\n'; exit "${PIPESTATUS[0]}") || gr=$?
+if [ "$gr" -ne 0 ]; then
+  echo "R-flag scan: could not list the staged files from git (exit=${gr}). A scan that cannot run is not a pass." >&2
+  exit 2
+fi
 [ -z "$staged_files" ] && exit 0
 
 staged_added_lines=$(git diff --cached -- . ':(exclude).githooks/**' 2>/dev/null | grep -E '^\+' | grep -vE '^\+\+\+' || true)

@@ -90,10 +90,23 @@ if [ -f "$allow" ]; then
   done < "$allow"
 fi
 
+# The tracked-file list is read NUL-delimited (-z), as raw bytes. Without -z, git's
+# default (core.quotepath=true) wraps a non-ASCII name in double quotes with
+# octal escapes ("svc_\344\273\225.py"); "$repo_root/$f" is then a path that does
+# not exist, `grep ... 2>/dev/null || continue` skipped it, and a raw sink in a
+# non-ASCII-named file passed the sweep. If git fails to list, that is "could
+# not run" (exit 2), not "nothing tracked".
+tracked_list="$(mktemp "${TMPDIR:-/tmp}/no-live-fire.XXXXXX")" || exit 2
+trap 'rm -f "$tracked_list"' EXIT
+if ! git ls-files -z > "$tracked_list"; then
+  echo "Live-fire CI sweep: **cannot run** -- could not list the tracked files from git." >&2
+  exit 2
+fi
+
 violations=()
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   [ -z "$f" ] && continue
-  echo "$f" | grep -qE "$skip_re" && continue
+  printf '%s\n' "$f" | grep -qE "$skip_re" && continue
   # -I treats binaries as non-matching. Check the raw match first, then confirm a
   # real (non-comment) match.
   grep -IqE "$combined" -- "$repo_root/$f" 2>/dev/null || continue
@@ -119,7 +132,7 @@ while IFS= read -r f; do
   done
   [ "$allowed" -eq 1 ] && continue
   violations+=("$f")
-done < <(git ls-files)
+done < "$tracked_list"
 
 if [ "${#violations[@]}" -gt 0 ]; then
   echo "Live-fire CI sweep: files not in the allowlist (.forge/sinks-allow.txt) contain a raw external-facing sink:"

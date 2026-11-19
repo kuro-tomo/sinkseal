@@ -20,4 +20,7 @@ bash "$repo_root/tests/smoke_test.sh" || fail=1
 echo "-> Running pattern-complexity guard..."
 bash "$repo_root/tests/pattern_complexity_test.sh" || fail=1
 
+echo "-> Running non-ASCII file-name test..."
+bash "$repo_root/tests/nonascii_filenames_test.sh" || fail=1
+
 exit "$fail"

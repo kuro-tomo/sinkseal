@@ -76,15 +76,32 @@ skip_re='(^|/)(\.githooks|\.forge|node_modules|dist|build|coverage)/|\.(md|rst|t
 
 # --diff-filter=ACMR: include renames (R) too, not just added/copied/modified —
 # a rename that also edits in a raw sink call must not be invisible to this scan.
-staged=$(git diff --cached --name-only --diff-filter=ACMR || true)
-[ -z "$staged" ] && exit 0
+#
+# File names are read NUL-delimited (-z), as raw bytes. Without -z, git's default
+# (core.quotepath=true) wraps a non-ASCII name in double quotes with octal
+# escapes ("svc_\344\273\225.py"), and the per-file `git diff -- "$f"` below then
+# matched no path at all and silently skipped that file's sinks. Failure to
+# list the files or to fetch a diff is exit 3 ("could not run"), never "no
+# sink". (Exit 0/1/2 are the verdicts above; pre-commit refuses anything else.)
+staged_list="$(mktemp "${TMPDIR:-/tmp}/sink-scan.XXXXXX")" || exit 3
+trap 'rm -f "$staged_list"' EXIT
+if ! git diff --cached --name-only -z --diff-filter=ACMR > "$staged_list"; then
+  echo "Live-fire sink scan: could not list the staged files from git. A scan that cannot run is not a pass." >&2
+  exit 3
+fi
+[ -s "$staged_list" ] || exit 0
 
 hard=()
 soft=()
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   [ -z "$f" ] && continue
-  echo "$f" | grep -qE "$skip_re" && continue
-  added=$(git diff --cached -- "$f" 2>/dev/null \
+  printf '%s\n' "$f" | grep -qE "$skip_re" && continue
+  # :(literal) so the name is a literal path, not a pathspec pattern.
+  if ! diff_out=$(git diff --cached -- ":(literal)$f"); then
+    echo "Live-fire sink scan: could not fetch the diff of ${f} from git. A scan that cannot run is not a pass." >&2
+    exit 3
+  fi
+  added=$(printf '%s\n' "$diff_out" \
     | grep -E '^\+' | grep -vE '^\+\+\+' | sed 's/^+//' \
     | sed -E "$strip_leading_close_comment_re" \
     | grep -vE "$comment_re" || true)
@@ -99,7 +116,7 @@ while IFS= read -r f; do
   else
     soft+=("$f")
   fi
-done <<< "$staged"
+done < "$staged_list"
 
 if [ "${#hard[@]}" -gt 0 ]; then
   echo "Live-fire hard block: demo/mock code is calling a raw external-facing sink directly."

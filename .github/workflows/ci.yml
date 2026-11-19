@@ -63,3 +63,5 @@ jobs:
         run: bash tests/smoke_test.sh
       - name: Run pattern-complexity guard
         run: bash tests/pattern_complexity_test.sh
+      - name: Run non-ASCII file-name test (C and UTF-8 locales)
+        run: bash tests/nonascii_filenames_test.sh

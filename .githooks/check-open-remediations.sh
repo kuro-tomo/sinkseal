@@ -48,24 +48,61 @@ memory_dir="$HOME/.claude/projects/${sanitized}/memory"
 
 [ -d "$memory_dir" ] || exit 0
 
-staged_files=$(git diff --cached --name-only || true)
+# Read the staged file names NUL-delimited (-z), as raw bytes. Without -z, git's
+# default (core.quotepath=true) wraps any non-ASCII name in double quotes with
+# octal escapes ("docs/\344\273\225..._v051.md"); that quoted form then became a
+# search keyword, and the "\344" in it was read by grep as a regex back-reference,
+# so grep died with "invalid backreference number". The old `|| true` swallowed
+# that failure and the check silently passed without looking at anything --
+# i.e. a check that could not run was treated as a pass. A failure to list the
+# staged files is now exit 2 (refuse), not "nothing to check".
+gr=0
+staged_files=$(git diff --cached --name-only -z | tr '\0' '\n'; exit "${PIPESTATUS[0]}") || gr=$?
+if [ "$gr" -ne 0 ]; then
+  echo "open-remediation check: could not list the staged files from git (exit=${gr}). A check that cannot run is not a pass." >&2
+  exit 2
+fi
 [ -z "$staged_files" ] && exit 0
 
 # Basenames of staged files (extension stripped, lowercased, deduped, entries
-# under 4 chars dropped to cut down on noise).
-keywords=$(echo "$staged_files" \
-  | xargs -I{} basename {} \
-  | sed -E 's/\.[^.]+$//' \
+# under 4 chars dropped to cut down on noise). Taken with shell string
+# operations rather than xargs/basename, which break on names containing quotes
+# or starting with "-".
+keywords=$(printf '%s\n' "$staged_files" \
+  | while IFS= read -r p; do b="${p##*/}"; printf '%s\n' "${b%.*}"; done \
   | tr '[:upper:]' '[:lower:]' \
   | awk 'length($0) >= 4' \
   | sort -u)
 
 [ -z "$keywords" ] && exit 0
 
+# The open items, collected once. nullglob keeps an empty memory directory (no
+# *.md at all) on the "nothing to check" path instead of handing grep a literal
+# "*.md" that does not exist. grep exit 0 = matched, 1 = no match, 2 or more =
+# error (unreadable file etc.), which must not be read as "no open items".
+shopt -s nullglob
+memory_files=("$memory_dir"/*.md)
+shopt -u nullglob
+[ "${#memory_files[@]}" -eq 0 ] && exit 0
+gr=0
+open_items=$(grep -inE "^- \[ \]" "${memory_files[@]}") || gr=$?
+if [ "$gr" -ge 2 ]; then
+  echo "open-remediation check: could not read the memory notes (grep exit=${gr}). A check that cannot run is not a pass." >&2
+  exit 2
+fi
+
 matched=()
 while IFS= read -r kw; do
   [ -z "$kw" ] && continue
-  hits=$(grep -inE "^- \[ \]" "$memory_dir"/*.md 2>/dev/null | grep -i -- "$kw" || true)
+  # The keyword is matched as a literal string (-F), never as a regex: a file
+  # name containing \1, [ or * must not be reinterpreted. Only grep exit 1
+  # ("no match") means "not related"; exit 2 or more means the lookup itself
+  # failed, which is refused rather than swallowed.
+  gr=0; hits=$(printf '%s\n' "$open_items" | grep -iF -- "$kw") || gr=$?
+  if [ "$gr" -ge 2 ]; then
+    echo "open-remediation check: the keyword lookup failed (keyword='${kw}', grep exit=${gr}). A check that cannot run is not a pass." >&2
+    exit 2
+  fi
   [ -n "$hits" ] && matched+=("$hits")
 done <<< "$keywords"
 
