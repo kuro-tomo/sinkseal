@@ -55,7 +55,9 @@ if [ "${#patterns[@]}" -eq 0 ]; then
   echo "Live-fire sink scan: **cannot run** — no sink pattern table found (sinks-default.txt missing)." >&2
   echo "  Looked in: $hook_dir/ and $hook_dir/../lib/" >&2
   echo "  Re-run install.sh to redistribute the SinkSeal hooks." >&2
-  exit 1
+  # Exit 3 ("could not run"), not 1: 1 means "soft R-flag", which pre-commit lets through with
+  # an R-Flag trailer -- so a broken install could be waved past. pre-commit refuses 3.
+  exit 3
 fi
 combined=$(IFS='|'; echo "${patterns[*]}")
 

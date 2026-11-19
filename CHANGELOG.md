@@ -54,10 +54,15 @@ All notable changes to SinkSeal are recorded here.
     made every later grep exit 2, which `|| continue` read as "no match", so
     the whole scan passed silently (`no-live-fire-check.sh` already refused this).
     It now validates up front and exits 3 with the cause; `pre-commit` refuses.
+  - `sink-scan.sh` with no pattern table reachable (a broken install) exited 1,
+    which `pre-commit` reads as "soft R-flag" -- satisfiable with an
+    `R-Flag: no` trailer. It now exits 3 ("could not run"), which `pre-commit`
+    refuses. **Behaviour change:** anything that relied on exit 1 for this case
+    must expect 3 (the bundled smoke test's Case 10 is updated accordingly).
 
 ### Added
 
-- `tests/nonascii_filenames_test.sh` — regression test for the above (56 cases,
+- `tests/nonascii_filenames_test.sh` — regression test for the above (57 cases,
   run under both the C and a UTF-8 locale; rejection cases assert the reason in
   the output, not just a non-zero exit).
 - `tests/mutate_nonascii_filenames.py` — mutation check: mechanically plants one

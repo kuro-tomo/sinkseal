@@ -294,7 +294,12 @@ mkiso() { # <repo dir> <hook script> [extra file to copy into iso/]
 }
 d=$(mkrepo); mkiso "${d}" sink-scan.sh
 rc=$(run "${d}" ../iso/sink-scan.sh)
-if [ "${rc}" = "1" ] && has 'cannot run' && has 'no sink pattern table'; then ok "sink-scan: no pattern table -> refuses (exit 1) and says why"; else ng "sink-scan: missing table not refused (rc=${rc}): $(show)"; fi
+if [ "${rc}" = "3" ] && has 'cannot run' && has 'no sink pattern table'; then ok "sink-scan: no pattern table -> exit 3 (could not run) and says why"; else ng "sink-scan: missing table not refused (rc=${rc}): $(show)"; fi
+# pre-commit must refuse on it too (exit 1 used to be read as a soft R-flag that a trailer could wave through).
+cp "${d}/.githooks/pre-commit" "${d}/iso/pre-commit"; cp "${d}/.githooks/rflag-scan.sh" "${d}/.githooks/rflag-rules-default.txt" "${d}/iso/"; cp "${d}/.githooks/check-open-remediations.sh" "${d}/iso/"
+echo 'twilio_service.send("hi")' > "${d}/svc_ascii.py"; "${GIT}" -C "${d}" add svc_ascii.py
+rc=$(run "${d}" ../iso/pre-commit)
+if [ "${rc}" = "1" ] && has 'sink scan failed to run'; then ok "pre-commit: a sink scan with no pattern table is refused, not treated as a soft R-flag"; else ng "pre-commit let a table-less sink scan through (rc=${rc}): $(show)"; fi
 d=$(mkrepo); mkiso "${d}" no-live-fire-check.sh
 rc=$(run "${d}" ../iso/no-live-fire-check.sh)
 if [ "${rc}" = "1" ] && has 'cannot run' && has 'pattern table not found'; then ok "no-live-fire-check: no pattern table -> refuses (exit 1) and says why"; else ng "no-live-fire-check: missing table not refused (rc=${rc}): $(show)"; fi
