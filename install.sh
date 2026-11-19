@@ -1,5 +1,5 @@
 #!/bin/bash
-# SinkSeal version: 0.1.0
+# SinkSeal version: 0.1.1
 # SinkSeal install.sh — install the git hooks into a target repo, self-contained.
 # Usage: ./install.sh /path/to/repo
 

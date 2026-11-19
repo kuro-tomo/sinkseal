@@ -2,7 +2,14 @@
 
 All notable changes to SinkSeal are recorded here.
 
-## [Unreleased]
+## [0.1.1] — 2026-11-19
+
+### Changed (behaviour)
+
+- Hook exit codes for "could not run" are now distinct and refused by `pre-commit`:
+  `sink-scan.sh` exits 3 (was 1) when no pattern table is reachable, and
+  `rflag-scan.sh` / `check-open-remediations.sh` exit 2 when they cannot run.
+  Anything that relied on the old exit 1 for a missing table must expect 3.
 
 ### Fixed
 
@@ -67,12 +74,6 @@ All notable changes to SinkSeal are recorded here.
   the output, not just a non-zero exit).
 - `tests/mutate_nonascii_filenames.py` — mutation check: mechanically plants one
   defect at a time in the relevant hook lines and confirms the test fails.
-
-### Version note
-
-Hook headers still read `SinkSeal version: 0.1.0`. This change alters hook
-behaviour (new exit codes, stricter `pre-commit`), so a release bump (suggested:
-0.1.1) is proposed for the maintainer's decision; it is deliberately not made here.
 
 ## [0.1.0] — 2026-07-27
 

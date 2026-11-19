@@ -1,5 +1,5 @@
 #!/bin/bash
-# SinkSeal version: 0.1.0
+# SinkSeal version: 0.1.1
 # SinkSeal: R-flag (risk-flag) scan — pattern-matches the staged diff.
 # Invocation: rflag-scan.sh
 # Output: on a match, lists the reasons to stdout and exits 1. No match -> exit 0.
